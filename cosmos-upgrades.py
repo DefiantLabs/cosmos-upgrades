@@ -7,9 +7,12 @@ from datetime import datetime
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master"
-NETWORKS = ["osmosis", "neutron", "nolus", "crescent", "akash", "cosmoshub", "sentinel", "stargaze", "omniflixhub", "terra", "kujira", "stride", "injective", "juno"]
-# NETWORKS = ["osmosis", "stride"]
+# NETWORKS = ["osmosis", "neutron", "nolus", "crescent", "akash", "cosmoshub", "sentinel", "stargaze", "omniflixhub", "terra", "kujira", "stride", "injective", "juno"]
+NETWORKS = ["akash", "osmosis"]
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
+
+# these servers have given consistent error responses, this list is used to skip them
+SERVER_BLACKLIST = ["https://stride.api.bccnodes.com:443", "https://api.omniflix.nodestake.top", "https://cosmos-lcd.quickapi.com:443"]
 
 def check_rest_endpoint(rest_url):
     """Check the REST endpoint and return the application version and response time."""
@@ -69,8 +72,6 @@ def fetch_active_upgrade_proposals(rest_url):
         response.raise_for_status()
         data = response.json()
         
-        # print(f"Received response: {data} from server: {rest_url}")
-        
         for proposal in data.get("proposals", []):
             content = proposal.get("content", {})
             if content.get("@type") == "/cosmos.upgrade.v1beta1.SoftwareUpgradeProposal":
@@ -103,15 +104,16 @@ def fetch_active_upgrade_proposals(rest_url):
         return None, None
     except requests.RequestException as e:
         print(f"Error received from server {rest_url}: {e}")
-        return None, None
+        raise e
+    except Exception as e:
+        print(f"Unhandled error while requesting active upgrade endpoint from {rest_url}: {e}")
+        raise e
 
 def fetch_current_upgrade_plan(rest_url):
     try:
         response = requests.get(f"{rest_url}/cosmos/upgrade/v1beta1/current_plan", verify=False)
         response.raise_for_status()
         data = response.json()
-        
-        print(f"Received response: {data} from server: {rest_url}")
         
         plan = data.get("plan", {})
         if plan:
@@ -126,9 +128,13 @@ def fetch_current_upgrade_plan(rest_url):
         return None, None
     except requests.RequestException as e:
         print(f"Error received from server {rest_url}: {e}")
-        return None, None
+        raise e
+    except Exception as e:
+        print(f"Unhandled error while requesting current upgrade endpoint from {rest_url}: {e}")
+        raise e
 
 def fetch_data_for_network(network, endpoints):
+    print(f"Fetching data for network {network}")
     """Fetch data for a specific network and print the results."""
     rest_endpoints = endpoints.get("rest", [])
     rpc_endpoints = endpoints.get("rpc", [])
@@ -140,29 +146,45 @@ def fetch_data_for_network(network, endpoints):
         if latest_block_height > 0:
             break
     if latest_block_height <= 0:
+        print(f"Failed to find latest block height from all rpc endpoints for network {network}")
         return
+    
+    print(f"Found latest block height {latest_block_height}")
 
     # Check for active upgrade proposals
-    for rest_endpoint in rest_endpoints:
-        version, upgrade_height = fetch_active_upgrade_proposals(rest_endpoint['address'])
-        if version and upgrade_height > latest_block_height:
-            print(f"Found software upgrade for {network.capitalize()} on endpoint {rest_endpoint['address']}:")
-            print(f"Upgrade proposal version: {version} at height {upgrade_height}\n")
+    for index, rest_endpoint in enumerate(rest_endpoints):
+        #attempt to get data, move onto next endpoint if either of these fail
+        current_endpoint = rest_endpoint["address"]
+        
+        if current_endpoint in SERVER_BLACKLIST:
+            continue
+        try:
+            #2 data gathering methods, one preferred over the other
+            active_upgrade_version, active_upgrade_height = fetch_active_upgrade_proposals(current_endpoint)
+            current_upgrade_version, current_upgrade_height = fetch_current_upgrade_plan(current_endpoint)
+        except:
+            if index + 1 < len(rest_endpoints):
+                print(f"Failed to query rest endpoints {current_endpoint}, trying next rest endpoint")
+                continue
+            else:
+                print(f"Failed to query rest endpoints {current_endpoint}, all out of endpoints to try")
+                break
+
+            
+        if active_upgrade_version and active_upgrade_height > latest_block_height:
+            print(f"Found software upgrade for {network.capitalize()} on endpoint {current_endpoint}:")
+            print(f"Upgrade proposal version: {active_upgrade_version} at height {active_upgrade_height}")
+            return
+    
+        if current_upgrade_version and current_upgrade_height > latest_block_height:
+            print(f"Found software upgrade plan for {network.capitalize()} on endpoint {current_endpoint}:")
+            print(f"Upgrade plan version: {current_upgrade_version} at height {current_upgrade_height}")
             return
 
         # Check for current upgrade plan
-        version, upgrade_height = fetch_current_upgrade_plan(rest_endpoint['address'])
-        if version is None and upgrade_height is None:
-            print(f"No software upgrade scheduled for {network.capitalize()} on endpoint {rest_endpoint['address']}.")
-            return  # Stop checking more endpoints
-
-        if version and upgrade_height > latest_block_height:
-            print(f"Found software upgrade plan for {network.capitalize()} on endpoint {rest_endpoint['address']}:")
-            print(f"Upgrade plan version: {version} at height {upgrade_height}\n")
+        if current_upgrade_version is None and current_upgrade_height is None:
+            print(f"No software upgrade scheduled for {network.capitalize()} on endpoint {current_endpoint}.")
             return
-
-    print(f"No software upgrade found for {network.capitalize()} on checked endpoints.\n")
-    return network
 
 def main():
     endpoints_map = fetch_all_endpoints()
