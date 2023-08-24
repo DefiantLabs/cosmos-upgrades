@@ -2,6 +2,7 @@ import requests
 from urllib3.exceptions import InsecureRequestWarning
 import re
 from datetime import datetime
+from random import shuffle
 
 # Suppress only the single InsecureRequestWarning from urllib3
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
@@ -140,7 +141,9 @@ def fetch_data_for_network(network, endpoints):
     rpc_endpoints = endpoints.get("rpc", [])
     
     # Prioritize RPC endpoints for fetching the latest block height
+    # Shuffle RPC endpoints to avoid calling the same one over and over
     latest_block_height = -1
+    shuffle(rpc_endpoints)
     for rpc_endpoint in rpc_endpoints:
         latest_block_height = get_latest_block_height_rpc(rpc_endpoint['address'])
         if latest_block_height > 0:
@@ -152,6 +155,8 @@ def fetch_data_for_network(network, endpoints):
     print(f"Found latest block height {latest_block_height}")
 
     # Check for active upgrade proposals
+    # Shuffle RPC endpoints to avoid calling the same one over and over
+    shuffle(rest_endpoints)
     for index, rest_endpoint in enumerate(rest_endpoints):
         #attempt to get data, move onto next endpoint if either of these fail
         current_endpoint = rest_endpoint["address"]
