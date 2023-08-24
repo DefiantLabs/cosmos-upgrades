@@ -3,13 +3,27 @@ from urllib3.exceptions import InsecureRequestWarning
 import re
 from datetime import datetime
 from random import shuffle
+import json
+import logging
+from flask import Flask, jsonify, request
+
+
+app = Flask(__name__)
+
+# Logging configuration
+logging.basicConfig(filename='app.log', level=logging.WARNING, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Suppress only the single InsecureRequestWarning from urllib3
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master"
-# NETWORKS = ["osmosis", "neutron", "nolus", "crescent", "akash", "cosmoshub", "sentinel", "stargaze", "omniflixhub", "terra", "kujira", "stride", "injective", "juno"]
-NETWORKS = ["akash", "osmosis"]
+
+# MAINNETS = ["osmosis", "neutron", "nolus", "crescent", "akash", "cosmoshub", "sentinel", "stargaze", "omniflixhub", "terra", "kujira", "stride", "injective", "juno"]
+MAINNETS = ["akash"]
+TESTNETS = ["cosmoshubtestnet"]  # You'll need to fill in the testnets if they're not dynamic
+MAINNET_BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master"
+TESTNET_BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master/testnets"
+
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 
 # these servers have given consistent error responses, this list is used to skip them
@@ -39,21 +53,22 @@ def get_latest_block_height_rpc(rpc_url):
     except requests.RequestException as e:
         return -1  # Return -1 to indicate an error
 
-def fetch_all_endpoints():
+def fetch_all_endpoints(network_type, base_url):
     """Fetch all the REST and RPC endpoints for all networks and store in a map."""
+    networks = MAINNETS if network_type == "mainnet" else TESTNETS
     endpoints_map = {}
-    for network in NETWORKS:
-        rest_endpoints, rpc_endpoints = fetch_endpoints(network)
+    for network in networks:
+        rest_endpoints, rpc_endpoints = fetch_endpoints(network, base_url)
         endpoints_map[network] = {
             "rest": rest_endpoints,
             "rpc": rpc_endpoints
         }
     return endpoints_map
 
-def fetch_endpoints(network):
+def fetch_endpoints(network, base_url):
     """Fetch the REST and RPC endpoints for a given network."""
     try:
-        response = requests.get(f"{BASE_URL}/{network}/chain.json")
+        response = requests.get(f"{base_url}/{network}/chain.json")
         response.raise_for_status()
         data = response.json()
         rest_endpoints = data.get("apis", {}).get("rest", [])
@@ -134,9 +149,8 @@ def fetch_current_upgrade_plan(rest_url):
         print(f"Unhandled error while requesting current upgrade endpoint from {rest_url}: {e}")
         raise e
 
-def fetch_data_for_network(network, endpoints):
+def fetch_data_for_network(network, endpoints, network_type):
     print(f"Fetching data for network {network}")
-    """Fetch data for a specific network and print the results."""
     rest_endpoints = endpoints.get("rest", [])
     rpc_endpoints = endpoints.get("rpc", [])
     
@@ -144,27 +158,26 @@ def fetch_data_for_network(network, endpoints):
     # Shuffle RPC endpoints to avoid calling the same one over and over
     latest_block_height = -1
     shuffle(rpc_endpoints)
+    rpc_server_used = ""
     for rpc_endpoint in rpc_endpoints:
         latest_block_height = get_latest_block_height_rpc(rpc_endpoint['address'])
         if latest_block_height > 0:
+            rpc_server_used = rpc_endpoint['address']
             break
-    if latest_block_height <= 0:
-        print(f"Failed to find latest block height from all rpc endpoints for network {network}")
-        return
     
-    print(f"Found latest block height {latest_block_height}")
-
     # Check for active upgrade proposals
     # Shuffle RPC endpoints to avoid calling the same one over and over
     shuffle(rest_endpoints)
+    upgrade_block_height = None
+    upgrade_version = ""
+    source = ""
+    
     for index, rest_endpoint in enumerate(rest_endpoints):
-        #attempt to get data, move onto next endpoint if either of these fail
         current_endpoint = rest_endpoint["address"]
         
         if current_endpoint in SERVER_BLACKLIST:
             continue
         try:
-            #2 data gathering methods, one preferred over the other
             active_upgrade_version, active_upgrade_height = fetch_active_upgrade_proposals(current_endpoint)
             current_upgrade_version, current_upgrade_height = fetch_current_upgrade_plan(current_endpoint)
         except:
@@ -175,26 +188,50 @@ def fetch_data_for_network(network, endpoints):
                 print(f"Failed to query rest endpoints {current_endpoint}, all out of endpoints to try")
                 break
 
-            
-        if active_upgrade_version and active_upgrade_height > latest_block_height:
-            print(f"Found software upgrade for {network.capitalize()} on endpoint {current_endpoint}:")
-            print(f"Upgrade proposal version: {active_upgrade_version} at height {active_upgrade_height}")
-            return
+        if active_upgrade_version and (active_upgrade_height is not None) and active_upgrade_height > latest_block_height:
+            upgrade_block_height = active_upgrade_height
+            upgrade_version = active_upgrade_version
+            source = "active_upgrade_proposals"
+            break
+
+        if current_upgrade_version and (current_upgrade_height is not None) and current_upgrade_height > latest_block_height:
+            upgrade_block_height = current_upgrade_height
+            upgrade_version = current_upgrade_version
+            source = "current_upgrade_plan"
+            break
     
-        if current_upgrade_version and current_upgrade_height > latest_block_height:
-            print(f"Found software upgrade plan for {network.capitalize()} on endpoint {current_endpoint}:")
-            print(f"Upgrade plan version: {current_upgrade_version} at height {current_upgrade_height}")
-            return
+    output_data = {
+        "type": network_type,
+        "network": network,
+        "upgrade_found": upgrade_version != "",
+        "latest_block_height": latest_block_height,
+        "upgrade_block_height": upgrade_block_height,
+        "version": upgrade_version,
+        "rpc_server": rpc_server_used,
+        "source": source
+    }
+    return output_data
 
-        # Check for current upgrade plan
-        if current_upgrade_version is None and current_upgrade_height is None:
-            print(f"No software upgrade scheduled for {network.capitalize()} on endpoint {current_endpoint}.")
-            return
+@app.route('/fetch', methods=['POST'])  # Change method to POST
+def fetch_network_data():
+    try:
+        request_data = request.get_json()  # Get the JSON payload from the user
+        if not request_data:
+            return jsonify({"error": "Invalid payload"}), 400
+        
+        results = []
+        for network_type, base_url, networks in [("mainnet", MAINNET_BASE_URL, request_data.get("MAINNETs", [])), 
+                                                 ("testnet", TESTNET_BASE_URL, request_data.get("TESTNETs", []))]:
+            endpoints_map = fetch_all_endpoints(network_type, base_url)
+            for network in networks:
+                try:
+                    network_data = fetch_data_for_network(network, endpoints_map.get(network, {}), network_type)
+                    results.append(network_data)
+                except Exception as e:
+                    logging.error(f"Error fetching data for network {network}: {e}")
+        return jsonify(results)
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
-def main():
-    endpoints_map = fetch_all_endpoints()
-    for network in NETWORKS:
-        fetch_data_for_network(network, endpoints_map.get(network, {}))
-
-if __name__ == "__main__":
-    main()
+if __name__ == '__main__':
+    app.run(debug=True)
