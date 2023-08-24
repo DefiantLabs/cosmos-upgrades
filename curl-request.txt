@@ -1,0 +1,7 @@
+curl -X POST \
+  -H "Content-Type: application/json" \
+  -d '{
+    "MAINNETs": ["akash"],
+    "TESTNETs": ["cosmoshubtestnet"]
+  }' \
+  http://localhost:5000/fetch
