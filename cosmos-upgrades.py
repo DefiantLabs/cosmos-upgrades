@@ -43,7 +43,6 @@ def get_healthy_rest_endpoints(rest_endpoints):
 def is_endpoint_healthy(endpoint):
     try:
         response = requests.get(f"{endpoint}/health", timeout=3, verify=False)
-        print(response.status_code)
         return response.status_code == 200
     except:
         return False
@@ -280,4 +279,4 @@ def fetch_network_data():
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False)

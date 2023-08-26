@@ -1,5 +1,5 @@
 #!/bin/bash
-curl -X POST \
+curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{
     "MAINNETS": ["stargaze"],
