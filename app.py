@@ -251,6 +251,10 @@ def fetch_data_for_network(network, endpoints, network_type):
     }
     return output_data
 
+@app.route('/healthz')
+def health_check():
+    return jsonify(status="OK"), 200
+
 @app.route('/fetch', methods=['POST'])
 def fetch_network_data():
     try:
