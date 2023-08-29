@@ -1,8 +1,8 @@
 #!/bin/bash
-curl -s -X POST \
+curl -vvv -X POST \
   -H "Content-Type: application/json" \
   -d '{
     "MAINNETS": ["stargaze"],
     "TESTNETS": ["cosmoshubtestnet"]
   }' \
-  http://localhost:5000/fetch
+  http://localhost:80/fetch
