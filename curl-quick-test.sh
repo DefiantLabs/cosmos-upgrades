@@ -1,8 +1,8 @@
 #!/bin/bash
-curl -vvv -X POST \
+curl -s -X POST \
   -H "Content-Type: application/json" \
   -d '{
-    "MAINNETS": ["stargaze"],
+    "MAINNETS": ["akash"],
     "TESTNETS": ["cosmoshubtestnet"]
   }' \
-  http://localhost:80/fetch
+  https://cosmos-upgrades.apis.defiantlabs.net/fetch | jq .
