@@ -49,7 +49,7 @@ curl -s -X POST \
     "MAINNETS": ["akash"],
     "TESTNETS": ["cosmoshubtestnet"]
   }' \
-  https://cosmos-upgrades.apis.defiantlabs.net/fetch 
+  https://cosmos-upgrades.apis.defiantlabs.net/fetch
 ```
 
 **Note:** The testnet and mainnet names provided in the request payload should match one-for-one with the names of the chains in the chain-registry.
@@ -94,4 +94,3 @@ The response will be in JSON format containing details of the scheduled upgrades
 - `version`: The version of the upgrade.
 
 **Note:** Chains with scheduled upgrades are displayed first in the response.
-
