@@ -5,4 +5,4 @@ curl -s -X POST \
     "MAINNETS": ["osmosis", "neutron", "nolus", "crescent", "akash", "cosmoshub", "sentinel", "stargaze", "omniflixhub", "terra", "kujira", "stride", "injective", "juno"],
     "TESTNETS": ["cosmoshubtestnet", "osmosistestnet"]
   }' \
-  http://localhost:5000/fetch
+  https://cosmos-upgrades.apis.defiantlabs.net/fetch | jq .
