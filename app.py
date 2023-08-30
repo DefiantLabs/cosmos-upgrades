@@ -7,6 +7,9 @@ import json
 import logging
 from flask import Flask, jsonify, request
 from concurrent.futures import ThreadPoolExecutor
+from time import sleep
+import threading
+
 
 
 app = Flask(__name__)
@@ -18,15 +21,81 @@ logging.basicConfig(filename='app.log', level=logging.WARNING, format='%(asctime
 requests.packages.urllib3.disable_warnings(InsecureRequestWarning)
 
 BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master"
-
+GITHUB_API_BASE_URL = "https://api.github.com/repos/cosmos/chain-registry/contents"
 
 MAINNET_BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master"
 TESTNET_BASE_URL = "https://raw.githubusercontent.com/cosmos/chain-registry/master/testnets"
 
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 
+# Global variables to store the data for mainnets and testnets
+MAINNET_DATA = []
+TESTNET_DATA = []
+
 # these servers have given consistent error responses, this list is used to skip them
 SERVER_BLACKLIST = ["https://stride.api.bccnodes.com:443", "https://api.omniflix.nodestake.top", "https://cosmos-lcd.quickapi.com:443"]
+
+def fetch_directory_names(path):
+    headers = {'Accept': 'application/vnd.github.v3+json'}
+    url = f"{GITHUB_API_BASE_URL}/{path}"
+    response = requests.get(url, headers=headers)
+    response_data = response.json()
+
+    if isinstance(response_data, list):
+        dir_names = [item['name'] for item in response_data if item['type'] == 'dir' and not item['name'].startswith(('.', '_'))]
+        return dir_names
+    else:
+        return []
+
+def fetch_all_chains():
+    # Fetch mainnet chains
+    mainnets = fetch_directory_names("")
+    if 'testnets' in mainnets:
+        mainnets.remove('testnets')  # Exclude the testnets directory
+
+    # Fetch testnet chains
+    testnets = fetch_directory_names("testnets")
+    print(f"mainnets: {mainnets}")
+    print(f"testnets: {testnets}")
+    return mainnets, testnets
+
+def update_data():
+    """Function to update the data for mainnets and testnets every 5 minutes."""
+    global MAINNET_DATA, TESTNET_DATA
+
+    # Fetch the list of mainnets and testnets once
+    mainnets, testnets = fetch_all_chains()
+
+    while True:
+        try:
+            # Fetch data for mainnets
+            MAINNET_DATA = []
+            for network in mainnets:
+                try:
+                    network_data = fetch_data_for_network(network, MAINNET_BASE_URL, "mainnet")
+                    MAINNET_DATA.append(network_data)
+                except Exception as e:
+                    logging.error(f"Error fetching data for mainnet {network}: {e}")
+
+            # Fetch data for testnets
+            TESTNET_DATA = []
+            for network in testnets:
+                try:
+                    network_data = fetch_data_for_network(network, TESTNET_BASE_URL, "testnet")
+                    TESTNET_DATA.append(network_data)
+                except Exception as e:
+                    logging.error(f"Error fetching data for testnet {network}: {e}")
+
+            # Sleep for 5 minutes before the next update
+            sleep(300)
+        except Exception as e:
+            logging.error(f"Error in update_data loop: {e}")
+            sleep(60)  # If there's an error, wait for a minute before retrying
+
+def start_update_data_thread():
+    update_thread = threading.Thread(target=update_data)
+    update_thread.daemon = True 
+    update_thread.start()
 
 def get_healthy_rpc_endpoints(rpc_endpoints):
     with ThreadPoolExecutor(max_workers=10) as executor:
@@ -281,6 +350,14 @@ def fetch_network_data():
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
+@app.route('/mainnet')
+def get_mainnet_data():
+    return jsonify(MAINNET_DATA)
+
+@app.route('/testnet')
+def get_testnet_data():
+    return jsonify(TESTNET_DATA)
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    start_update_data_thread()
+    app.run(use_reloader=False)
