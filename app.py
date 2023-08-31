@@ -2,7 +2,7 @@ import requests
 import re
 from datetime import datetime
 from random import shuffle
-import logging
+# import logging
 import threading
 from flask import Flask, jsonify, request
 from flask_caching import Cache
@@ -15,7 +15,7 @@ import json
 app = Flask(__name__)
 
 # Logging configuration
-logging.basicConfig(filename='app.log', level=print, format='%(asctime)s - %(levelname)s - %(message)s')
+# logging.basicConfig(filename='app.log', level=print, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Suppress only the single InsecureRequestWarning from urllib3
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
