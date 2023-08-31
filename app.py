@@ -46,14 +46,14 @@ def download_and_extract_repo():
     global repo_path
 
     # GitHub API endpoint to get the zip download URL
-    repo_api_url = "https://api.github.com/repos/cosmos/chain-registry"    
+    repo_api_url = "https://api.github.com/repos/cosmos/chain-registry"
     headers = {
         'Accept': 'application/vnd.github.v3+json',
     }
 
     print(f"Fetching repo {repo_api_url}...")
     response = requests.get(repo_api_url, headers=headers)
-    
+
     if response.status_code != 200:
         raise Exception(f"Failed to fetch data from GitHub API. Status code: {response.status_code}")
 
@@ -371,14 +371,14 @@ def update_data():
             print(f"Repository downloaded and extracted to: {repo_path}")
 
             # Process mainnets & testnets
-            mainnet_networks = [d for d in os.listdir(repo_path) 
-                                if os.path.isdir(os.path.join(repo_path, d)) 
-                                and not d.startswith(('.', '_')) 
+            mainnet_networks = [d for d in os.listdir(repo_path)
+                                if os.path.isdir(os.path.join(repo_path, d))
+                                and not d.startswith(('.', '_'))
                                 and d != "testnets"]
 
             testnet_path = os.path.join(repo_path, 'testnets')
-            testnet_networks = [d for d in os.listdir(testnet_path) 
-                                if os.path.isdir(os.path.join(testnet_path, d)) 
+            testnet_networks = [d for d in os.listdir(testnet_path)
+                                if os.path.isdir(os.path.join(testnet_path, d))
                                 and not d.startswith(('.', '_'))]
 
             with ThreadPoolExecutor() as executor:
@@ -399,7 +399,7 @@ def update_data():
 def start_update_data_thread():
     print("Starting the update_data thread...")
     update_thread = threading.Thread(target=update_data)
-    update_thread.daemon = True 
+    update_thread.daemon = True
     update_thread.start()
     print("update_data thread started.")
 
