@@ -389,8 +389,8 @@ def update_data():
             cache.set('MAINNET_DATA', mainnet_data)
             cache.set('TESTNET_DATA', testnet_data)
 
-            print("Data update cycle completed. Sleeping for 5 minutes...")
-            sleep(300)
+            print("Data update cycle completed. Sleeping for 1 minute...")
+            sleep(60)
         except Exception as e:
             print(f"Error in update_data loop: {e}")
             print("Error encountered. Sleeping for 1 minute before retrying...")
