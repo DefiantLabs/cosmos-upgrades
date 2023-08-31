@@ -446,6 +446,12 @@ def fetch_network_data():
 @cache.cached(timeout=300)  # Cache the result for 5 minutes
 def get_mainnet_data():
     results = cache.get('MAINNET_DATA')
+    if results is None:
+        return jsonify({"error": "Data not available"}), 500
+
+    # Filter out None values from results
+    results = [r for r in results if r is not None]
+
     sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
     return jsonify(sorted_results)
 
@@ -453,6 +459,12 @@ def get_mainnet_data():
 @cache.cached(timeout=300)  # Cache the result for 5 minutes
 def get_testnet_data():
     results = cache.get('TESTNET_DATA')
+    if results is None:
+        return jsonify({"error": "Data not available"}), 500
+
+    # Filter out None values from results
+    results = [r for r in results if r is not None]
+
     sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
     return jsonify(sorted_results)
 
