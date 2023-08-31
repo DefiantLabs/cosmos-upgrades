@@ -414,15 +414,25 @@ def fetch_network_data():
         if not request_data:
             return jsonify({"error": "Invalid payload"}), 400
 
-        results = []
-        for network_type, networks in [("mainnet", request_data.get("MAINNETS", [])),
-                                      ("testnet", request_data.get("TESTNETS", []))]:
-            for network in networks:
-                try:
-                    network_data = fetch_data_for_network(network, network_type)
-                    results.append(network_data)
-                except Exception as e:
-                    logging.error(f"Error fetching data for network {network}: {e}")
+        mainnet_data = cache.get('MAINNET_DATA')
+        testnet_data = cache.get('TESTNET_DATA')
+
+        # If the data is not in the cache, fetch it live
+        if not mainnet_data or not testnet_data:
+            results = []
+            for network_type, networks in [("mainnet", request_data.get("MAINNETS", [])),
+                                          ("testnet", request_data.get("TESTNETS", []))]:
+                for network in networks:
+                    try:
+                        network_data = fetch_data_for_network(network, network_type)
+                        results.append(network_data)
+                    except Exception as e:
+                        logging.error(f"Error fetching data for network {network}: {e}")
+        else:
+            # Filter the cached data based on the networks provided in the POST request
+            filtered_mainnet_data = [data for data in mainnet_data if data['network'] in request_data.get("MAINNETS", [])]
+            filtered_testnet_data = [data for data in testnet_data if data['network'] in request_data.get("TESTNETS", [])]
+            results = filtered_mainnet_data + filtered_testnet_data
 
         # Sort the results by 'upgrade_found' in descending order (chain upgrades first)
         sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
@@ -435,12 +445,16 @@ def fetch_network_data():
 @app.route('/mainnets')
 @cache.cached(timeout=300)  # Cache the result for 5 minutes
 def get_mainnet_data():
-    return jsonify(cache.get('MAINNET_DATA'))
+    results = cache.get('MAINNET_DATA')
+    sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+    return jsonify(sorted_results)
 
 @app.route('/testnets')
 @cache.cached(timeout=300)  # Cache the result for 5 minutes
 def get_testnet_data():
-    return jsonify(cache.get('TESTNET_DATA'))
+    results = cache.get('TESTNET_DATA')
+    sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+    return jsonify(sorted_results)
 
 if __name__ == '__main__':
     app.debug = True
