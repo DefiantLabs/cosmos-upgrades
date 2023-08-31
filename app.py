@@ -15,7 +15,7 @@ import json
 app = Flask(__name__)
 
 # Logging configuration
-logging.basicConfig(filename='app.log', level=logging.INFO, format='%(asctime)s - %(levelname)s - %(message)s')
+logging.basicConfig(filename='app.log', level=print, format='%(asctime)s - %(levelname)s - %(message)s')
 
 # Suppress only the single InsecureRequestWarning from urllib3
 requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.InsecureRequestWarning)
@@ -51,7 +51,7 @@ def download_and_extract_repo():
         'Accept': 'application/vnd.github.v3+json',
     }
 
-    logging.info(f"Fetching repo {repo_api_url}...")
+    print(f"Fetching repo {repo_api_url}...")
     response = requests.get(repo_api_url, headers=headers)
 
     if response.status_code != 200:
@@ -190,7 +190,7 @@ def fetch_endpoints(network, base_url):
     """Fetch the REST and RPC endpoints for a given network."""
     try:
         response = requests.get(f"{base_url}/{network}/chain.json")
-        logging.info(f"{base_url}/{network}/chain.json")
+        print(f"{base_url}/{network}/chain.json")
         response.raise_for_status()
         data = response.json()
         rest_endpoints = data.get("apis", {}).get("rest", [])
@@ -241,10 +241,10 @@ def fetch_active_upgrade_proposals(rest_url):
                     return version, height
         return None, None
     except requests.RequestException as e:
-        logging.info(f"Error received from server {rest_url}: {e}")
+        print(f"Error received from server {rest_url}: {e}")
         raise e
     except Exception as e:
-        logging.info(f"Unhandled error while requesting active upgrade endpoint from {rest_url}: {e}")
+        print(f"Unhandled error while requesting active upgrade endpoint from {rest_url}: {e}")
         raise e
 
 def fetch_current_upgrade_plan(rest_url):
@@ -265,10 +265,10 @@ def fetch_current_upgrade_plan(rest_url):
                 return version, height
         return None, None
     except requests.RequestException as e:
-        logging.info(f"Error received from server {rest_url}: {e}")
+        print(f"Error received from server {rest_url}: {e}")
         raise e
     except Exception as e:
-        logging.info(f"Unhandled error while requesting current upgrade endpoint from {rest_url}: {e}")
+        print(f"Unhandled error while requesting current upgrade endpoint from {rest_url}: {e}")
         raise e
 
 def fetch_data_for_network(network, network_type):
@@ -285,7 +285,7 @@ def fetch_data_for_network(network, network_type):
 
     # Check if the chain.json file exists
     if not os.path.exists(chain_json_path):
-        logging.info(f"chain.json not found for network {network}. Skipping...")
+        print(f"chain.json not found for network {network}. Skipping...")
         return None
 
     # Load the chain.json data
@@ -294,7 +294,7 @@ def fetch_data_for_network(network, network_type):
 
     rest_endpoints = data.get("apis", {}).get("rest", [])
     rpc_endpoints = data.get("apis", {}).get("rpc", [])
-    logging.info(f"Found {len(rest_endpoints)} rest endpoints and {len(rpc_endpoints)} rpc endpoints for {network}")
+    print(f"Found {len(rest_endpoints)} rest endpoints and {len(rpc_endpoints)} rpc endpoints for {network}")
 
     # Prioritize RPC endpoints for fetching the latest block height
     # Shuffle RPC endpoints to avoid calling the same one over and over
@@ -330,10 +330,10 @@ def fetch_data_for_network(network, network_type):
             current_upgrade_version, current_upgrade_height = fetch_current_upgrade_plan(current_endpoint)
         except:
             if index + 1 < len(healthy_rest_endpoints):
-                logging.info(f"Failed to query rest endpoints {current_endpoint}, trying next rest endpoint")
+                print(f"Failed to query rest endpoints {current_endpoint}, trying next rest endpoint")
                 continue
             else:
-                logging.info(f"Failed to query rest endpoints {current_endpoint}, all out of endpoints to try")
+                print(f"Failed to query rest endpoints {current_endpoint}, all out of endpoints to try")
                 break
 
         if active_upgrade_version and (active_upgrade_height is not None) and active_upgrade_height > latest_block_height:
@@ -358,7 +358,7 @@ def fetch_data_for_network(network, network_type):
         "rpc_server": rpc_server_used,
         "source": source
     }
-    logging.info(f"Completed fetch data for network {network}")
+    print(f"Completed fetch data for network {network}")
     return output_data
 
 # periodic cache update
@@ -368,7 +368,7 @@ def update_data():
         print("Starting data update cycle...")
         try:
             repo_path = download_and_extract_repo()
-            logging.info(f"Repository downloaded and extracted to: {repo_path}")
+            print(f"Repository downloaded and extracted to: {repo_path}")
 
             # Process mainnets & testnets
             mainnet_networks = [d for d in os.listdir(repo_path)
@@ -392,7 +392,7 @@ def update_data():
             print("Data update cycle completed. Sleeping for 1 minute...")
             sleep(60)
         except Exception as e:
-            logging.info(f"Error in update_data loop: {e}")
+            print(f"Error in update_data loop: {e}")
             print("Error encountered. Sleeping for 1 minute before retrying...")
             sleep(60)
 
@@ -427,7 +427,7 @@ def fetch_network_data():
                         network_data = fetch_data_for_network(network, network_type)
                         results.append(network_data)
                     except Exception as e:
-                        logging.error(f"Error fetching data for network {network}: {e}")
+                        print(f"Error fetching data for network {network}: {e}")
         else:
             # Filter the cached data based on the networks provided in the POST request
             filtered_mainnet_data = [data for data in mainnet_data if data['network'] in request_data.get("MAINNETS", [])]
