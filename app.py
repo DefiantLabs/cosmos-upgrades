@@ -363,7 +363,7 @@ def fetch_data_for_network(network, network_type):
 
 # periodic cache update
 def update_data():
-    """Function to update the data for mainnets and testnets every 5 minutes."""
+    """Function to periodically update the data for mainnets and testnets."""
     while True:
         print("Starting data update cycle...")
         try:
