@@ -24,8 +24,10 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 # Initialize cache
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-# Initialize repo path var
+# Initialize repo vars
 repo_path = ""
+repo_last_download_time = None
+repo_retain_hours = int(os.environ.get('REPO_RETAIN_HOURS', 3))
 
 # Initialize number of workers
 num_workers = int(os.environ.get('NUM_WORKERS', 10))
@@ -370,13 +372,22 @@ def fetch_data_for_network(network, network_type):
 # periodic cache update
 def update_data():
     """Function to periodically update the data for mainnets and testnets."""
-    while True:
-        start_time = datetime.now()
-        print("Starting data update cycle...")
-        try:
-            repo_path = download_and_extract_repo()
-            print(f"Repository downloaded and extracted to: {repo_path}")
+    global repo_last_download_time
 
+    while True:
+        start_time = datetime.now()  # Capture the start time
+        print("Starting data update cycle...")
+
+        # Check if it's time to download the repo
+        if repo_last_download_time is None or (datetime.now() - repo_last_download_time).total_seconds() >= 60 * 60 * repo_retain_hours:
+            try:
+                repo_path = download_and_extract_repo()
+                print(f"Repository downloaded and extracted to: {repo_path}")
+                repo_last_download_time = datetime.now()
+            except Exception as e:
+                print(f"Error downloading and extracting repo: {e}")
+
+        try:
             # Process mainnets & testnets
             mainnet_networks = [d for d in os.listdir(repo_path)
                                 if os.path.isdir(os.path.join(repo_path, d))
@@ -396,15 +407,15 @@ def update_data():
             cache.set('MAINNET_DATA', mainnet_data)
             cache.set('TESTNET_DATA', testnet_data)
 
-            elapsed_time = (datetime.now() - start_time).total_seconds()
+            elapsed_time = (datetime.now() - start_time).total_seconds()  # Calculate the elapsed time
             print(f"Data update cycle completed in {elapsed_time} seconds. Sleeping for 1 minute...")
             sleep(60)
-        
         except Exception as e:
-            elapsed_time = (datetime.now() - start_time).total_seconds()
+            elapsed_time = (datetime.now() - start_time).total_seconds()  # Calculate the elapsed time in case of an error
             print(f"Error in update_data loop after {elapsed_time} seconds: {e}")
             print("Error encountered. Sleeping for 1 minute before retrying...")
             sleep(60)
+
 
 def start_update_data_thread():
     print("Starting the update_data thread...")
