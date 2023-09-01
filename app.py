@@ -11,6 +11,7 @@ from time import sleep
 import os
 import zipfile
 import json
+import tempfile
 
 app = Flask(__name__)
 
@@ -45,6 +46,9 @@ def download_and_extract_repo():
     """Download the GitHub repository as a zip file, extract it, and return the path to the extracted content."""
     global repo_path
 
+    # Create a temporary directory for extraction
+    temp_dir = tempfile.mkdtemp()
+
     # GitHub API endpoint to get the zip download URL
     repo_api_url = "https://api.github.com/repos/cosmos/chain-registry"
     headers = {
@@ -72,12 +76,14 @@ def download_and_extract_repo():
 
     # Extract the zip file
     with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-        zip_ref.extractall('.')
-        # The extracted folder has a name like 'cosmos-chain-registry-<commit_hash>'
-        # We'll return the first directory that starts with 'cosmos-chain-registry-'
-        extracted_folder = next((folder for folder in os.listdir('.') if folder.startswith('cosmos-chain-registry-')), None)
-        repo_path = extracted_folder
-        return repo_path
+        zip_ref.extractall(temp_dir)
+        extracted_folder = next((folder for folder in os.listdir(temp_dir) if folder.startswith('cosmos-chain-registry-')), None)
+        new_repo_path = os.path.join(temp_dir, extracted_folder)
+
+    # Update the global repo_path only after successful extraction
+    repo_path = new_repo_path
+
+    return repo_path
 
 def fetch_directory_names(path):
     headers = {'Accept': 'application/vnd.github.v3+json'}
@@ -443,7 +449,7 @@ def fetch_network_data():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/mainnets')
-@cache.cached(timeout=300)  # Cache the result for 5 minutes
+@cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_mainnet_data():
     results = cache.get('MAINNET_DATA')
     if results is None:
@@ -456,7 +462,7 @@ def get_mainnet_data():
     return jsonify(sorted_results)
 
 @app.route('/testnets')
-@cache.cached(timeout=300)  # Cache the result for 5 minutes
+@cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_testnet_data():
     results = cache.get('TESTNET_DATA')
     if results is None:
