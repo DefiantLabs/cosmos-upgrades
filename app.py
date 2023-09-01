@@ -371,6 +371,7 @@ def fetch_data_for_network(network, network_type):
 def update_data():
     """Function to periodically update the data for mainnets and testnets."""
     while True:
+        start_time = datetime.now()
         print("Starting data update cycle...")
         try:
             repo_path = download_and_extract_repo()
@@ -395,10 +396,13 @@ def update_data():
             cache.set('MAINNET_DATA', mainnet_data)
             cache.set('TESTNET_DATA', testnet_data)
 
-            print("Data update cycle completed. Sleeping for 1 minute...")
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            print(f"Data update cycle completed in {elapsed_time} seconds. Sleeping for 1 minute...")
             sleep(60)
+        
         except Exception as e:
-            print(f"Error in update_data loop: {e}")
+            elapsed_time = (datetime.now() - start_time).total_seconds()
+            print(f"Error in update_data loop after {elapsed_time} seconds: {e}")
             print("Error encountered. Sleeping for 1 minute before retrying...")
             sleep(60)
 
