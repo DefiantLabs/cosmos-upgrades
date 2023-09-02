@@ -467,7 +467,7 @@ def fetch_network_data():
 
         sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
         reordered_results = [reorder_data(result) for result in sorted_results]
-        return Response(json.dumps(reordered_results, indent=2), content_type="application/json")
+        return Response(json.dumps(reordered_results, indent=2) + '\n', content_type="application/json")
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -485,7 +485,7 @@ def get_mainnet_data():
     results = [r for r in results if r is not None]
     sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
     reordered_results = [reorder_data(result) for result in sorted_results]
-    return Response(json.dumps(reordered_results), content_type="application/json")
+    return Response(json.dumps(reordered_results) + '\n', content_type="application/json")
 
 @app.route('/testnets')
 # @cache.cached(timeout=600)  # Cache the result for 10 minutes
@@ -497,7 +497,7 @@ def get_testnet_data():
     results = [r for r in results if r is not None]
     sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
     reordered_results = [reorder_data(result) for result in sorted_results]
-    return Response(json.dumps(reordered_results), content_type="application/json")
+    return Response(json.dumps(reordered_results) + '\n', content_type="application/json")
 
 if __name__ == '__main__':
     app.debug = True
