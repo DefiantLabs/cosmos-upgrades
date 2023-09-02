@@ -31,7 +31,7 @@ repo_last_download_time = None
 repo_retain_hours = int(os.environ.get('REPO_RETAIN_HOURS', 3))
 
 # Initialize number of workers
-num_workers = int(os.environ.get('NUM_WORKERS', 24))
+num_workers = int(os.environ.get('NUM_WORKERS', 10))
 
 GITHUB_API_BASE_URL = "https://api.github.com/repos/cosmos/chain-registry/contents"
 
