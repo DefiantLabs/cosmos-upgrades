@@ -143,7 +143,7 @@ def get_latest_block_height_rpc(rpc_url):
         return int(data.get('result', {}).get('sync_info', {}).get('latest_block_height', 0))
     except requests.RequestException as e:
         return -1  # Return -1 to indicate an error
-    
+
 def get_block_time_rpc(rpc_url, height):
     """Fetch the block header time for a given block height from the RPC endpoint."""
     try:
@@ -153,7 +153,7 @@ def get_block_time_rpc(rpc_url, height):
         return data.get('result', {}).get('block', {}).get('header', {}).get('time', "")
     except requests.RequestException as e:
         return None
-    
+
 def parse_isoformat_string(date_string):
     date_string = re.sub(r"(\.\d{6})\d+Z", r"\1Z", date_string)
     date_string = date_string.replace("Z", "+00:00")
