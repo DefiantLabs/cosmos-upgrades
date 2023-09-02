@@ -470,7 +470,10 @@ def fetch_network_data():
 
         reordered_results = [reorder_data(result) for result in results]
         sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
-        return sorted_results
+        return jsonify(sorted_results)
+
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
