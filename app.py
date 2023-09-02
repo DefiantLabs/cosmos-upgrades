@@ -476,7 +476,7 @@ def fetch_network_data():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/mainnets')
-@cache.cached(timeout=600)  # Cache the result for 10 minutes
+# @cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_mainnet_data():
     results = cache.get('MAINNET_DATA')
     if results is None:
@@ -488,7 +488,7 @@ def get_mainnet_data():
     return jsonify(sorted_results)
 
 @app.route('/testnets')
-@cache.cached(timeout=600)  # Cache the result for 10 minutes
+# @cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_testnet_data():
     results = cache.get('TESTNET_DATA')
     if results is None:
