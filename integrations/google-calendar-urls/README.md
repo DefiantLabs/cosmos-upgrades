@@ -10,39 +10,36 @@ Integrate with the `cosmos-upgrades` API to fetch upgrade events and add them to
 
 ## Screenshots
 
-![image](https://github.com/DefiantLabs/cosmos-upgrades/assets/807940/9e6e9de6-75ce-41b3-9e82-4036dc285da8)
-
-
+![image](https://github.com/DefiantLabs/cosmos-upgrades/assets/807940/b8b2082b-ae18-4876-ab78-a79d0d9eddf9)
 
 ## Prerequisites 📜
 
 1. Python 3.6+
-2. `requests` library (install via pip)
+2. Required Python libraries. Install them using:
+   ```bash
+   pip install -r requirements.txt
+   ```
 
 ## Customizing Monitored Networks 🎛️
 
 By default, the tool monitors a preset list of mainnets and testnets. If you're interested in specific networks, you can easily customize the list:
 
-1. Open `app.py` in your preferred code editor.
-
-2. Locate the `networks` dictionary:
-
-    ```python
-    networks = {
-        "mainnets": "...",
-        "testnets": "..."
-    }
-    ```
-
-3. Modify the list of networks under `mainnets` or `testnets` as required. Ensure network names are separated by a space.
+1. Open `config.json` in the project directory.
+   
+2. Modify the list of networks under `mainnets` or `testnets` as required. Ensure network names are separated by a space.
 
    For example, to only monitor the `osmosis` and `akash` mainnets:
 
-   ```python
-   "mainnets": "osmosis akash",
+   ```json
+   {
+     "networks": {
+       "mainnets": "osmosis akash",
+       "testnets": "..."
+     }
+   }
    ```
 
-4. Save the file and run the tool.
+3. Save the changes and run the tool.
 
 ## Usage 💡
 
