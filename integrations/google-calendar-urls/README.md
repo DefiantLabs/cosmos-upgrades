@@ -10,7 +10,8 @@ Integrate with the `cosmos-upgrades` API to fetch upgrade events and add them to
 
 ## Screenshots
 
-![image](https://github.com/DefiantLabs/cosmos-upgrades/assets/807940/b8b2082b-ae18-4876-ab78-a79d0d9eddf9)
+![image](https://github.com/DefiantLabs/cosmos-upgrades/assets/807940/4b431117-df3c-4049-aadf-f892b521e428)
+
 
 ## Prerequisites 📜
 
