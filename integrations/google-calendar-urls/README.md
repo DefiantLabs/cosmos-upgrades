@@ -8,34 +8,19 @@ Integrate with the `cosmos-upgrades` API to fetch upgrade events and add them to
 - Automatically creates Google Calendar events for each upgrade.
 - Provides direct links to the relevant block details on Mintscan.
 
+## Demo
+
 ## Prerequisites 📜
 
 1. Python 3.6+
 2. `requests` library (install via pip)
-
-## Setup & Installation ⚙️
-
-1. Clone the repository:
-   ```bash
-   git clone <repository_url>
-   ```
-
-2. Install required packages:
-   ```bash
-   pip install requests
-   ```
-
-3. Run the tool:
-   ```bash
-   python <filename>.py
-   ```
 
 ## Customizing Monitored Networks 🎛️
 
 By default, the tool monitors a preset list of mainnets and testnets. If you're interested in specific networks, you can easily customize the list:
 
 1. Open `app.py` in your preferred code editor.
-   
+
 2. Locate the `networks` dictionary:
 
     ```python

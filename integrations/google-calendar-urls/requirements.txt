@@ -1,1 +1,5 @@
 requests
+termcolor
+pyshorteners
+pytz
+python-dateutil
