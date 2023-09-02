@@ -158,6 +158,24 @@ def parse_isoformat_string(date_string):
     date_string = date_string.replace("Z", "+00:00")
     return datetime.fromisoformat(date_string)
 
+def reorder_data(data):
+    """
+    Reorder the data according to the specified structure.
+
+    :param data: Original data dictionary.
+    :return: Reordered data dictionary.
+    """
+    return {
+        "type": data.get("type"),
+        "network": data.get("network"),
+        "rpc_server": data.get("rpc_server"),
+        "latest_block_height": data.get("latest_block_height"),
+        "upgrade_found": data.get("upgrade_found"),
+        "source": data.get("source"),
+        "upgrade_block_height": data.get("upgrade_block_height"),
+        "estimated_upgrade_time": data.get("estimated_upgrade_time"),
+        "version": data.get("version")  # Assuming "upgrade_name" is the version
+    }
 
 def fetch_all_endpoints(network_type, base_url, request_data):
     """Fetch all the REST and RPC endpoints for all networks and store in a map."""
@@ -450,11 +468,9 @@ def fetch_network_data():
             filtered_testnet_data = [data for data in testnet_data if data['network'] in request_data.get("TESTNETS", [])]
             results = filtered_mainnet_data + filtered_testnet_data
 
-        # Sort the results by 'upgrade_found' in descending order (chain upgrades first)
-        sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
-
-        response = Response(json.dumps(sorted_results, indent=2), content_type="application/json")
-        return response
+        reordered_results = [reorder_data(result) for result in results]
+        sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
+        return sorted_results
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -466,10 +482,9 @@ def get_mainnet_data():
     if results is None:
         return jsonify({"error": "Data not available"}), 500
 
-    # Filter out None values from results
     results = [r for r in results if r is not None]
-
-    sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+    reordered_results = [reorder_data(result) for result in results]
+    sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
     return jsonify(sorted_results)
 
 @app.route('/testnets')
@@ -479,10 +494,9 @@ def get_testnet_data():
     if results is None:
         return jsonify({"error": "Data not available"}), 500
 
-    # Filter out None values from results
     results = [r for r in results if r is not None]
-
-    sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+    reordered_results = [reorder_data(result) for result in results]
+    sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
     return jsonify(sorted_results)
 
 if __name__ == '__main__':
