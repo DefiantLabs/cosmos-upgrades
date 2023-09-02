@@ -9,6 +9,7 @@ from flask import Flask, jsonify, request, Response
 from flask_caching import Cache
 from concurrent.futures import ThreadPoolExecutor
 from time import sleep
+from collections import OrderedDict
 import os
 import zipfile
 import json
@@ -159,18 +160,19 @@ def parse_isoformat_string(date_string):
     return datetime.fromisoformat(date_string)
 
 def reorder_data(data):
-    return {
-        "network": data.get("network"),
-        "type": data.get("type"),
-        "rpc_server": data.get("rpc_server"),
-        "latest_block_height": data.get("latest_block_height"),
-        "upgrade_found": data.get("upgrade_found"),
-        "upgrade_name": data.get("upgrade_name"),
-        "source": data.get("source"),
-        "upgrade_block_height": data.get("upgrade_block_height"),
-        "estimated_upgrade_time": data.get("estimated_upgrade_time"),
-        "version": data.get("version")
-    }
+    ordered_data = OrderedDict([
+        ("type", data.get("type")),
+        ("network", data.get("network")),
+        ("rpc_server", data.get("rpc_server")),
+        ("latest_block_height", data.get("latest_block_height")),
+        ("upgrade_found", data.get("upgrade_found")),
+        ("upgrade_name", data.get("upgrade_name")),
+        ("source", data.get("source")),
+        ("upgrade_block_height", data.get("upgrade_block_height")),
+        ("estimated_upgrade_time", data.get("estimated_upgrade_time")),
+        ("version", data.get("version"))
+    ])
+    return ordered_data
 
 def fetch_all_endpoints(network_type, base_url, request_data):
     """Fetch all the REST and RPC endpoints for all networks and store in a map."""
