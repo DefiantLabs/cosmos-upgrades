@@ -159,18 +159,13 @@ def parse_isoformat_string(date_string):
     return datetime.fromisoformat(date_string)
 
 def reorder_data(data):
-    """
-    Reorder the data according to the specified structure.
-
-    :param data: Original data dictionary.
-    :return: Reordered data dictionary.
-    """
     return {
-        "type": data.get("type"),
         "network": data.get("network"),
+        "type": data.get("type"),
         "rpc_server": data.get("rpc_server"),
         "latest_block_height": data.get("latest_block_height"),
         "upgrade_found": data.get("upgrade_found"),
+        "upgrade_name": data.get("upgrade_name"),
         "source": data.get("source"),
         "upgrade_block_height": data.get("upgrade_block_height"),
         "estimated_upgrade_time": data.get("estimated_upgrade_time"),
