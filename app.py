@@ -11,6 +11,7 @@ from time import sleep
 import os
 import zipfile
 import json
+import tempfile
 
 app = Flask(__name__)
 
@@ -23,8 +24,10 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 # Initialize cache
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
-# Initialize repo path var
+# Initialize repo vars
 repo_path = ""
+repo_last_download_time = None
+repo_retain_hours = int(os.environ.get('REPO_RETAIN_HOURS', 3))
 
 # Initialize number of workers
 num_workers = int(os.environ.get('NUM_WORKERS', 10))
@@ -44,6 +47,9 @@ SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 def download_and_extract_repo():
     """Download the GitHub repository as a zip file, extract it, and return the path to the extracted content."""
     global repo_path
+
+    # Create a temporary directory for extraction
+    temp_dir = tempfile.mkdtemp()
 
     # GitHub API endpoint to get the zip download URL
     repo_api_url = "https://api.github.com/repos/cosmos/chain-registry"
@@ -72,12 +78,14 @@ def download_and_extract_repo():
 
     # Extract the zip file
     with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-        zip_ref.extractall('.')
-        # The extracted folder has a name like 'cosmos-chain-registry-<commit_hash>'
-        # We'll return the first directory that starts with 'cosmos-chain-registry-'
-        extracted_folder = next((folder for folder in os.listdir('.') if folder.startswith('cosmos-chain-registry-')), None)
-        repo_path = extracted_folder
-        return repo_path
+        zip_ref.extractall(temp_dir)
+        extracted_folder = next((folder for folder in os.listdir(temp_dir) if folder.startswith('cosmos-chain-registry-')), None)
+        new_repo_path = os.path.join(temp_dir, extracted_folder)
+
+    # Update the global repo_path only after successful extraction
+    repo_path = new_repo_path
+
+    return repo_path
 
 def fetch_directory_names(path):
     headers = {'Accept': 'application/vnd.github.v3+json'}
@@ -364,12 +372,22 @@ def fetch_data_for_network(network, network_type):
 # periodic cache update
 def update_data():
     """Function to periodically update the data for mainnets and testnets."""
-    while True:
-        print("Starting data update cycle...")
-        try:
-            repo_path = download_and_extract_repo()
-            print(f"Repository downloaded and extracted to: {repo_path}")
+    global repo_last_download_time
 
+    while True:
+        start_time = datetime.now()  # Capture the start time
+        print("Starting data update cycle...")
+
+        # Check if it's time to download the repo
+        if repo_last_download_time is None or (datetime.now() - repo_last_download_time).total_seconds() >= 60 * 60 * repo_retain_hours:
+            try:
+                repo_path = download_and_extract_repo()
+                print(f"Repository downloaded and extracted to: {repo_path}")
+                repo_last_download_time = datetime.now()
+            except Exception as e:
+                print(f"Error downloading and extracting repo: {e}")
+
+        try:
             # Process mainnets & testnets
             mainnet_networks = [d for d in os.listdir(repo_path)
                                 if os.path.isdir(os.path.join(repo_path, d))
@@ -389,12 +407,15 @@ def update_data():
             cache.set('MAINNET_DATA', mainnet_data)
             cache.set('TESTNET_DATA', testnet_data)
 
-            print("Data update cycle completed. Sleeping for 1 minute...")
+            elapsed_time = (datetime.now() - start_time).total_seconds()  # Calculate the elapsed time
+            print(f"Data update cycle completed in {elapsed_time} seconds. Sleeping for 1 minute...")
             sleep(60)
         except Exception as e:
-            print(f"Error in update_data loop: {e}")
+            elapsed_time = (datetime.now() - start_time).total_seconds()  # Calculate the elapsed time in case of an error
+            print(f"Error in update_data loop after {elapsed_time} seconds: {e}")
             print("Error encountered. Sleeping for 1 minute before retrying...")
             sleep(60)
+
 
 def start_update_data_thread():
     print("Starting the update_data thread...")
@@ -443,7 +464,7 @@ def fetch_network_data():
         return jsonify({"error": str(e)}), 500
 
 @app.route('/mainnets')
-@cache.cached(timeout=300)  # Cache the result for 5 minutes
+@cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_mainnet_data():
     results = cache.get('MAINNET_DATA')
     if results is None:
@@ -456,7 +477,7 @@ def get_mainnet_data():
     return jsonify(sorted_results)
 
 @app.route('/testnets')
-@cache.cached(timeout=300)  # Cache the result for 5 minutes
+@cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_testnet_data():
     results = cache.get('TESTNET_DATA')
     if results is None:
