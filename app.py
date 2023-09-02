@@ -174,7 +174,7 @@ def reorder_data(data):
         "source": data.get("source"),
         "upgrade_block_height": data.get("upgrade_block_height"),
         "estimated_upgrade_time": data.get("estimated_upgrade_time"),
-        "version": data.get("version")  # Assuming "upgrade_name" is the version
+        "version": data.get("version")
     }
 
 def fetch_all_endpoints(network_type, base_url, request_data):
@@ -468,9 +468,9 @@ def fetch_network_data():
             filtered_testnet_data = [data for data in testnet_data if data['network'] in request_data.get("TESTNETS", [])]
             results = filtered_mainnet_data + filtered_testnet_data
 
-        reordered_results = [reorder_data(result) for result in results]
-        sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
-        return jsonify(sorted_results)
+        sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+        reordered_results = [reorder_data(result) for result in sorted_results]
+        return jsonify(reordered_results)
 
     except Exception as e:
         return jsonify({"error": str(e)}), 500
@@ -486,9 +486,9 @@ def get_mainnet_data():
         return jsonify({"error": "Data not available"}), 500
 
     results = [r for r in results if r is not None]
-    reordered_results = [reorder_data(result) for result in results]
-    sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
-    return jsonify(sorted_results)
+    sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+    reordered_results = [reorder_data(result) for result in sorted_results]
+    return jsonify(reordered_results)
 
 @app.route('/testnets')
 # @cache.cached(timeout=600)  # Cache the result for 10 minutes
@@ -498,9 +498,9 @@ def get_testnet_data():
         return jsonify({"error": "Data not available"}), 500
 
     results = [r for r in results if r is not None]
-    reordered_results = [reorder_data(result) for result in results]
-    sorted_results = sorted(reordered_results, key=lambda x: x['upgrade_found'], reverse=True)
-    return jsonify(sorted_results)
+    sorted_results = sorted(results, key=lambda x: x['upgrade_found'], reverse=True)
+    reordered_results = [reorder_data(result) for result in sorted_results]
+    return jsonify(reordered_results)
 
 if __name__ == '__main__':
     app.debug = True
