@@ -287,7 +287,7 @@ def fetch_data_for_network(network, network_type, repo_path):
         chain_json_path = os.path.join(repo_path, 'testnets', network, 'chain.json')
     else:
         raise ValueError(f"Invalid network type: {network_type}")
-    
+
     err_output_data = {
         "network": network,
         "error": "insufficient data in Cosmos chain registry, consider a PR to cosmos/chain-registry",
@@ -378,7 +378,7 @@ def fetch_data_for_network(network, network_type, repo_path):
             #this is where the "no upgrades found block runs"
             rest_server_used = current_endpoint
             break
-        
+
 
     # Calculate average block time
     current_block_time = get_block_time_rpc(rpc_server_used, latest_block_height)
@@ -438,7 +438,7 @@ def update_data():
                                 if os.path.isdir(os.path.join(repo_path, d))
                                 and not d.startswith(('.', '_'))
                                 and d != "testnets"]
-            
+
             if len(CHAIN_WATCH) != 0:
                 mainnet_networks = [d for d in mainnet_networks if d in CHAIN_WATCH]
 
