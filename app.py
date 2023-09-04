@@ -12,7 +12,6 @@ from time import sleep
 from collections import OrderedDict
 import os
 import json
-import tempfile
 import subprocess
 
 app = Flask(__name__)
@@ -50,22 +49,18 @@ def clone_repo():
     """Clone the GitHub repository and return the path to the cloned content."""
     global repo_path
 
-    # Create a temporary directory for cloning
-    temp_dir = tempfile.mkdtemp()
-
     # GitHub repo URL for cloning
     repo_clone_url = "https://github.com/cosmos/chain-registry.git"
 
-    print(f"Cloning repo {repo_clone_url} into {temp_dir}...")
+    print(f"Cloning repo {repo_clone_url}...")
 
     # Use subprocess to run the git clone command
     try:
-        subprocess.run(["git", "clone", repo_clone_url, temp_dir], check=True)
+        subprocess.run(["git", "clone", repo_clone_url], check=True)
     except subprocess.CalledProcessError:
         raise Exception("Failed to clone the repository.")
 
-    # The path to the cloned repo will be the temp_dir itself
-    repo_path = temp_dir
+    repo_path = os.path.join(os.getcwd(), 'chain-registry')
 
     return repo_path
 
