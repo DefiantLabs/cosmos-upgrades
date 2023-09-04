@@ -11,7 +11,6 @@ from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from collections import OrderedDict
 import os
-import zipfile
 import json
 import tempfile
 import subprocess
@@ -46,54 +45,7 @@ TESTNET_DATA = []
 
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 
-# Define all utility functions
-def download_and_extract_repo():
-    """Download the GitHub repository as a zip file, extract it, and return the path to the extracted content."""
-    global repo_path
-
-    # Create a temporary directory for extraction
-    temp_dir = tempfile.mkdtemp()
-
-    # GitHub API endpoint to get the zip download URL
-    repo_api_url = "https://api.github.com/repos/cosmos/chain-registry"
-    headers = {
-        'Accept': 'application/vnd.github.v3+json',
-    }
-
-    print(f"Fetching repo {repo_api_url}...")
-    response = requests.get(repo_api_url, headers=headers)
-
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch data from GitHub API. Status code: {response.status_code}")
-
-    response_data = response.json()
-    zip_url = response_data.get('archive_url', '').replace('{archive_format}', 'zipball').replace('{/ref}', '/master')
-
-    if not zip_url:
-        raise Exception("Failed to obtain the zip URL from the GitHub API response.")
-
-    # Download the zip file
-    zip_response = requests.get(zip_url, stream=True, headers=headers)
-    zip_filename = "chain-registry.zip"
-    with open(zip_filename, 'wb') as zip_file:
-        for chunk in zip_response.iter_content(chunk_size=8192):
-            zip_file.write(chunk)
-    print(f"Downloading Zip File")
-
-    # Extract the zip file
-    with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-        zip_ref.extractall(temp_dir)
-        extracted_folder = next((folder for folder in os.listdir(temp_dir) if folder.startswith('cosmos-chain-registry-')), None)
-        new_repo_path = os.path.join(temp_dir, extracted_folder)
-
-    print(f"Extracting Zip File")
-
-    # Update the global repo_path only after successful extraction
-    repo_path = new_repo_path
-
-    return repo_path
-
-# Define all utility functions
+# Clone the repo
 def clone_repo():
     """Clone the GitHub repository and return the path to the cloned content."""
     global repo_path
