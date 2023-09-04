@@ -11,9 +11,8 @@ from concurrent.futures import ThreadPoolExecutor
 from time import sleep
 from collections import OrderedDict
 import os
-import zipfile
 import json
-import tempfile
+import subprocess
 
 app = Flask(__name__)
 
@@ -45,49 +44,28 @@ TESTNET_DATA = []
 
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 
-# Define all utility functions
-def download_and_extract_repo():
-    """Download the GitHub repository as a zip file, extract it, and return the path to the extracted content."""
+# Clone the repo
+def clone_repo():
+    """Clone the GitHub repository and return the path to the cloned content."""
     global repo_path
 
-    # Create a temporary directory for extraction
-    temp_dir = tempfile.mkdtemp()
+    # GitHub repo URL for cloning
+    repo_clone_url = "https://github.com/cosmos/chain-registry.git"
 
-    # GitHub API endpoint to get the zip download URL
-    repo_api_url = "https://api.github.com/repos/cosmos/chain-registry"
-    headers = {
-        'Accept': 'application/vnd.github.v3+json',
-    }
+    print(f"Cloning repo {repo_clone_url}...")
 
-    print(f"Fetching repo {repo_api_url}...")
-    response = requests.get(repo_api_url, headers=headers)
+    # Use subprocess to run the git clone command
+    try:
+        subprocess.run(["git", "clone", repo_clone_url], check=True)
+    except subprocess.CalledProcessError:
+        raise Exception("Failed to clone the repository.")
 
-    if response.status_code != 200:
-        raise Exception(f"Failed to fetch data from GitHub API. Status code: {response.status_code}")
-
-    response_data = response.json()
-    zip_url = response_data.get('archive_url', '').replace('{archive_format}', 'zipball').replace('{/ref}', '/master')
-
-    if not zip_url:
-        raise Exception("Failed to obtain the zip URL from the GitHub API response.")
-
-    # Download the zip file
-    zip_response = requests.get(zip_url, stream=True, headers=headers)
-    zip_filename = "chain-registry.zip"
-    with open(zip_filename, 'wb') as zip_file:
-        for chunk in zip_response.iter_content(chunk_size=8192):
-            zip_file.write(chunk)
-
-    # Extract the zip file
-    with zipfile.ZipFile(zip_filename, 'r') as zip_ref:
-        zip_ref.extractall(temp_dir)
-        extracted_folder = next((folder for folder in os.listdir(temp_dir) if folder.startswith('cosmos-chain-registry-')), None)
-        new_repo_path = os.path.join(temp_dir, extracted_folder)
-
-    # Update the global repo_path only after successful extraction
-    repo_path = new_repo_path
+    repo_path = os.path.join(os.getcwd(), 'chain-registry')
 
     return repo_path
+
+
+
 
 def get_healthy_rpc_endpoints(rpc_endpoints):
     with ThreadPoolExecutor(max_workers=num_workers) as executor:
@@ -164,6 +142,7 @@ def reorder_data(data):
         ("type", data.get("type")),
         ("network", data.get("network")),
         ("rpc_server", data.get("rpc_server")),
+        ("rest_server", data.get("rest_server")),
         ("latest_block_height", data.get("latest_block_height")),
         ("upgrade_found", data.get("upgrade_found")),
         ("upgrade_name", data.get("upgrade_name")),
@@ -318,6 +297,7 @@ def fetch_data_for_network(network, network_type):
     upgrade_name = ""
     upgrade_version = ""
     source = ""
+    rest_server_used = ""
 
     for index, rest_endpoint in enumerate(healthy_rest_endpoints):
         current_endpoint = rest_endpoint["address"]
@@ -348,6 +328,7 @@ def fetch_data_for_network(network, network_type):
             upgrade_name = current_upgrade_name
             source = "current_upgrade_plan"
             break
+        rest_server_used = current_endpoint
 
     # Calculate average block time
     current_block_time = get_block_time_rpc(rpc_server_used, latest_block_height)
@@ -370,6 +351,7 @@ def fetch_data_for_network(network, network_type):
         "network": network,
         "type": network_type,
         "rpc_server": rpc_server_used,
+        "rest_server": rest_server_used,
         "latest_block_height": latest_block_height,
         "upgrade_found": upgrade_version != "",
         "upgrade_name": upgrade_name,
@@ -393,7 +375,8 @@ def update_data():
         # Check if it's time to download the repo
         if repo_last_download_time is None or (datetime.now() - repo_last_download_time).total_seconds() >= 60 * 60 * repo_retain_hours:
             try:
-                repo_path = download_and_extract_repo()
+                # repo_path = download_and_extract_repo()
+                repo_path = clone_repo()
                 print(f"Repository downloaded and extracted to: {repo_path}")
                 repo_last_download_time = datetime.now()
             except Exception as e:
