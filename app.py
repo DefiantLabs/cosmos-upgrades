@@ -393,8 +393,8 @@ def update_data():
             print(f"Repo path: {repo_path}")
         except Exception as e:
             print(f"Error downloading and extracting repo: {e}")
-            print("Error encountered. Sleeping for 1 minute before retrying...")
-            sleep(60)
+            print("Error encountered. Sleeping for 5 seconds before retrying...")
+            sleep(5)
             continue
 
         try:
