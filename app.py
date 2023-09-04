@@ -42,7 +42,7 @@ SERVER_BLACKLIST = ["https://stride.api.bccnodes.com:443", "https://api.omniflix
 MAINNET_DATA = []
 TESTNET_DATA = []
 
-SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
+SEMANTIC_VERSION_PATTERN = re.compile(r'(v\d+(?:\.\d+){0,2})')
 
 # Explicit list of chains to pull data from
 def get_chain_watch_env_var():
@@ -219,26 +219,15 @@ def fetch_active_upgrade_proposals(rest_url):
             content = proposal.get("content", {})
             if content.get("@type") == "/cosmos.upgrade.v1beta1.SoftwareUpgradeProposal":
                 # Extract version from the plan name
-                plan_name = content.get("plan", {}).get("name", "")
-                plan_version_match = SEMANTIC_VERSION_PATTERN.search(plan_name)
+                plan = content.get("plan", {})
+                plan_name = plan.get("name", "")
 
-                # Extract version from the description
-                description = content.get("description", "")
-                description_version_match = SEMANTIC_VERSION_PATTERN.search(description)
-
-                # Prioritize the longer semantic version
-
-                if plan_version_match and description_version_match:
-                    version = plan_version_match.group(1) if len(plan_version_match.group(1)) > len(description_version_match.group(1)) else description_version_match.group(1)
-                elif plan_version_match:
-                    version = plan_version_match.group(1)
-                elif description_version_match:
-                    version = description_version_match.group(1)
-                else:
-                    version = None
-
+                # naive regex search on whole message dump
+                content_dump = json.dumps(content)
+                versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
+                version = max(versions, key=len)
                 try:
-                    height = int(content.get("plan", {}).get("height", 0))
+                    height = int(plan.get("height", 0))
                 except ValueError:
                     height = 0
 
@@ -290,6 +279,7 @@ def fetch_data_for_network(network, network_type, repo_path):
 
     err_output_data = {
         "network": network,
+        "type": network_type,
         "error": "insufficient data in Cosmos chain registry, consider a PR to cosmos/chain-registry",
         "upgrade_found": False
     }
@@ -317,13 +307,6 @@ def fetch_data_for_network(network, network_type, repo_path):
         err_output_data["error"] = f"insufficient data in Cosmos chain registry, no healthy RPC servers for {network}. Consider a PR to cosmos/chain-registry"
         return err_output_data
 
-    if len(healthy_rest_endpoints) == 0:
-        print(f"No healthy REST endpoints found for network {network} while searching through {len(rest_endpoints)} endpoints. Skipping...")
-        err_output_data["error"] = f"insufficient data in Cosmos chain registry, no healthy REST servers for {network}. Consider a PR to cosmos/chain-registry"
-        return err_output_data
-
-    print(f"Found {len(healthy_rest_endpoints)} rest endpoints and {len(healthy_rpc_endpoints)} rpc endpoints for {network}")
-
     # Shuffle the healthy endpoints
     shuffle(healthy_rpc_endpoints)
     shuffle(healthy_rest_endpoints)
@@ -334,6 +317,15 @@ def fetch_data_for_network(network, network_type, repo_path):
         if latest_block_height > 0:
             rpc_server_used = rpc_endpoint['address']
             break
+
+    if len(healthy_rest_endpoints) == 0:
+        print(f"No healthy REST endpoints found for network {network} while searching through {len(rest_endpoints)} endpoints. Skipping...")
+        err_output_data["error"] = f"insufficient data in Cosmos chain registry, no healthy REST servers for {network}. Consider a PR to cosmos/chain-registry"
+        err_output_data["latest_block_height"] = latest_block_height
+        err_output_data["rpc_server"] = rpc_server_used
+        return err_output_data
+
+    print(f"Found {len(healthy_rest_endpoints)} rest endpoints and {len(healthy_rpc_endpoints)} rpc endpoints for {network}")
 
     # Check for active upgrade proposals
     upgrade_block_height = None
