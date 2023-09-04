@@ -86,6 +86,9 @@ def get_healthy_rest_endpoints(rest_endpoints):
 def is_endpoint_healthy(endpoint):
     try:
         response = requests.get(f"{endpoint}/health", timeout=1, verify=False)
+        # some chains dont implement the /health endpoint. Should we just skip /health and go directly to the below?
+        if response.status_code == 501:
+            response = requests.get(f"{endpoint}/cosmos/gov/v1beta1/proposals?proposal_status=2", timeout=1, verify=False)
         return response.status_code == 200
     except:
         return False
@@ -277,12 +280,21 @@ def fetch_data_for_network(network, network_type, repo_path):
 
     rest_endpoints = data.get("apis", {}).get("rest", [])
     rpc_endpoints = data.get("apis", {}).get("rpc", [])
-    print(f"Found {len(rest_endpoints)} rest endpoints and {len(rpc_endpoints)} rpc endpoints for {network}")
 
     # Prioritize RPC endpoints for fetching the latest block height
     latest_block_height = -1
     healthy_rpc_endpoints = get_healthy_rpc_endpoints(rpc_endpoints)
     healthy_rest_endpoints = get_healthy_rest_endpoints(rest_endpoints)
+
+    if len(healthy_rpc_endpoints) == 0:
+        print(f"No healthy RPC endpoints found for network {network}. Skipping...")
+        return None
+
+    if len(healthy_rest_endpoints) == 0:
+        print(f"No healthy REST endpoints found for network {network}. Skipping...")
+        return None
+
+    print(f"Found {len(healthy_rest_endpoints)} rest endpoints and {len(healthy_rpc_endpoints)} rpc endpoints for {network}")
 
     # Shuffle the healthy endpoints
     shuffle(healthy_rpc_endpoints)
@@ -381,6 +393,9 @@ def update_data():
             print(f"Repo path: {repo_path}")
         except Exception as e:
             print(f"Error downloading and extracting repo: {e}")
+            print("Error encountered. Sleeping for 5 seconds before retrying...")
+            sleep(5)
+            continue
 
         try:
             # Process mainnets & testnets
