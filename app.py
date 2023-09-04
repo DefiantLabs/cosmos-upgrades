@@ -289,11 +289,11 @@ def fetch_data_for_network(network, network_type, repo_path):
     if len(healthy_rpc_endpoints) == 0:
         print(f"No healthy RPC endpoints found for network {network}. Skipping...")
         return None
-    
+
     if len(healthy_rest_endpoints) == 0:
         print(f"No healthy REST endpoints found for network {network}. Skipping...")
         return None
-    
+
     print(f"Found {len(healthy_rest_endpoints)} rest endpoints and {len(healthy_rpc_endpoints)} rpc endpoints for {network}")
 
     # Shuffle the healthy endpoints
