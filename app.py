@@ -26,9 +26,9 @@ requests.packages.urllib3.disable_warnings(requests.packages.urllib3.exceptions.
 cache = Cache(app, config={'CACHE_TYPE': 'simple'})
 
 # Initialize repo vars
-repo_path = ""
-repo_last_download_time = None
-repo_retain_hours = int(os.environ.get('REPO_RETAIN_HOURS', 3))
+# repo_path = ""
+# repo_last_download_time = None
+# repo_retain_hours = int(os.environ.get('REPO_RETAIN_HOURS', 3))
 
 # Initialize number of workers
 num_workers = int(os.environ.get('NUM_WORKERS', 10))
@@ -45,26 +45,30 @@ TESTNET_DATA = []
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 
 # Clone the repo
-def clone_repo():
-    """Clone the GitHub repository and return the path to the cloned content."""
-    global repo_path
-
-    # GitHub repo URL for cloning
+def fetch_repo():
+    """Clone the GitHub repository or update it if it already exists."""
     repo_clone_url = "https://github.com/cosmos/chain-registry.git"
+    repo_dir = os.path.join(os.getcwd(), 'chain-registry')
 
-    print(f"Cloning repo {repo_clone_url}...")
+    if os.path.exists(repo_dir):
+        print(f"Repository already exists. Fetching and pulling latest changes...")
+        try:
+            # Navigate to the repo directory
+            os.chdir(repo_dir)
+            # Fetch the latest changes
+            subprocess.run(["git", "fetch"], check=True)
+            # Pull the latest changes
+            subprocess.run(["git", "pull"], check=True)
+        except subprocess.CalledProcessError:
+            raise Exception("Failed to fetch and pull the latest changes.")
+    else:
+        print(f"Cloning repo {repo_clone_url}...")
+        try:
+            subprocess.run(["git", "clone", repo_clone_url], check=True)
+        except subprocess.CalledProcessError:
+            raise Exception("Failed to clone the repository.")
 
-    # Use subprocess to run the git clone command
-    try:
-        subprocess.run(["git", "clone", repo_clone_url], check=True)
-    except subprocess.CalledProcessError:
-        raise Exception("Failed to clone the repository.")
-
-    repo_path = os.path.join(os.getcwd(), 'chain-registry')
-
-    return repo_path
-
-
+    return repo_dir
 
 
 def get_healthy_rpc_endpoints(rpc_endpoints):
@@ -251,8 +255,7 @@ def fetch_current_upgrade_plan(rest_url):
         print(f"Unhandled error while requesting current upgrade endpoint from {rest_url}: {e}")
         raise e
 
-def fetch_data_for_network(network, network_type):
-    global repo_path
+def fetch_data_for_network(network, network_type, repo_path):
     """Fetch data for a given network."""
 
     # Construct the path to the chain.json file based on network type
@@ -372,15 +375,12 @@ def update_data():
         start_time = datetime.now()  # Capture the start time
         print("Starting data update cycle...")
 
-        # Check if it's time to download the repo
-        if repo_last_download_time is None or (datetime.now() - repo_last_download_time).total_seconds() >= 60 * 60 * repo_retain_hours:
-            try:
-                # repo_path = download_and_extract_repo()
-                repo_path = clone_repo()
-                print(f"Repository downloaded and extracted to: {repo_path}")
-                repo_last_download_time = datetime.now()
-            except Exception as e:
-                print(f"Error downloading and extracting repo: {e}")
+        # Git clone or fetch & pull
+        try:
+            repo_path = fetch_repo()
+            print(f"Repo path: {repo_path}")
+        except Exception as e:
+            print(f"Error downloading and extracting repo: {e}")
 
         try:
             # Process mainnets & testnets
@@ -395,8 +395,8 @@ def update_data():
                                 and not d.startswith(('.', '_'))]
 
             with ThreadPoolExecutor() as executor:
-                testnet_data = list(filter(None, executor.map(lambda network: fetch_data_for_network(network, "testnet"), testnet_networks)))
-                mainnet_data = list(filter(None, executor.map(lambda network: fetch_data_for_network(network, "mainnet"), mainnet_networks)))
+                testnet_data = list(filter(None, executor.map(lambda network, path: fetch_data_for_network(network, "testnet", path), testnet_networks, [repo_path]*len(testnet_networks))))
+                mainnet_data = list(filter(None, executor.map(lambda network, path: fetch_data_for_network(network, "mainnet", path), mainnet_networks, [repo_path]*len(mainnet_networks))))
 
             # Update the Flask cache
             cache.set('MAINNET_DATA', mainnet_data)
