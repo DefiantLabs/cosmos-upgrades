@@ -44,6 +44,21 @@ TESTNET_DATA = []
 
 SEMANTIC_VERSION_PATTERN = re.compile(r'v(\d+(?:\.\d+){0,2})')
 
+# Explicit list of chains to pull data from
+def get_chain_watch_env_var():
+    chain_watch = os.environ.get('CHAIN_WATCH', '')
+
+    chain_watch.split(" ")
+
+    if len(chain_watch) > 0:
+        print("CHAIN_WATCH env variable set, gathering data and watching for these chains: " + chain_watch)
+    else:
+        print("CHAIN_WATCH env variable not set, gathering data for all chains")
+
+    return chain_watch
+
+CHAIN_WATCH = get_chain_watch_env_var()
+
 # Clone the repo
 def fetch_repo():
     """Clone the GitHub repository or update it if it already exists."""
@@ -275,13 +290,14 @@ def fetch_data_for_network(network, network_type, repo_path):
     
     err_output_data = {
         "network": network,
-        "error": "insufficient data in Cosmos chain registry",
+        "error": "insufficient data in Cosmos chain registry, consider a PR to cosmos/chain-registry",
         "upgrade_found": False
     }
 
     # Check if the chain.json file exists
     if not os.path.exists(chain_json_path):
         print(f"chain.json not found for network {network}. Skipping...")
+        err_output_data["error"] = f"insufficient data in Cosmos chain registry, chain.json not found for {network}. Consider a PR to cosmos/chain-registry"
         return err_output_data
 
     # Load the chain.json data
@@ -298,10 +314,12 @@ def fetch_data_for_network(network, network_type, repo_path):
 
     if len(healthy_rpc_endpoints) == 0:
         print(f"No healthy RPC endpoints found for network {network} while searching through {len(rpc_endpoints)} endpoints. Skipping...")
+        err_output_data["error"] = f"insufficient data in Cosmos chain registry, no healthy RPC servers for {network}. Consider a PR to cosmos/chain-registry"
         return err_output_data
 
     if len(healthy_rest_endpoints) == 0:
         print(f"No healthy REST endpoints found for network {network} while searching through {len(rest_endpoints)} endpoints. Skipping...")
+        err_output_data["error"] = f"insufficient data in Cosmos chain registry, no healthy REST servers for {network}. Consider a PR to cosmos/chain-registry"
         return err_output_data
 
     print(f"Found {len(healthy_rest_endpoints)} rest endpoints and {len(healthy_rpc_endpoints)} rpc endpoints for {network}")
@@ -420,11 +438,17 @@ def update_data():
                                 if os.path.isdir(os.path.join(repo_path, d))
                                 and not d.startswith(('.', '_'))
                                 and d != "testnets"]
+            
+            if len(CHAIN_WATCH) != 0:
+                mainnet_networks = [d for d in mainnet_networks if d in CHAIN_WATCH]
 
             testnet_path = os.path.join(repo_path, 'testnets')
             testnet_networks = [d for d in os.listdir(testnet_path)
                                 if os.path.isdir(os.path.join(testnet_path, d))
                                 and not d.startswith(('.', '_'))]
+
+            if len(CHAIN_WATCH) != 0:
+                testnet_networks = [d for d in testnet_networks if d in CHAIN_WATCH]
 
             with ThreadPoolExecutor() as executor:
                 testnet_data = list(filter(None, executor.map(lambda network, path: fetch_data_for_network(network, "testnet", path), testnet_networks, [repo_path]*len(testnet_networks))))
