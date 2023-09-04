@@ -51,6 +51,7 @@ def fetch_repo():
     repo_dir = os.path.join(os.getcwd(), 'chain-registry')
 
     if os.path.exists(repo_dir):
+        old_wd = os.getcwd()
         print(f"Repository already exists. Fetching and pulling latest changes...")
         try:
             # Navigate to the repo directory
@@ -61,6 +62,8 @@ def fetch_repo():
             subprocess.run(["git", "pull"], check=True)
         except subprocess.CalledProcessError:
             raise Exception("Failed to fetch and pull the latest changes.")
+        finally:
+            os.chdir(old_wd)
     else:
         print(f"Cloning repo {repo_clone_url}...")
         try:
@@ -272,7 +275,8 @@ def fetch_data_for_network(network, network_type, repo_path):
     
     err_output_data = {
         "network": network,
-        "error": "insufficient data in Cosmos chain registry"
+        "error": "insufficient data in Cosmos chain registry",
+        "upgrade_found": False
     }
 
     # Check if the chain.json file exists
