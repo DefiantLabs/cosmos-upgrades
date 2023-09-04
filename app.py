@@ -156,7 +156,8 @@ def reorder_data(data):
         ("source", data.get("source")),
         ("upgrade_block_height", data.get("upgrade_block_height")),
         ("estimated_upgrade_time", data.get("estimated_upgrade_time")),
-        ("version", data.get("version"))
+        ("version", data.get("version")),
+        ('error', data.get("error"))
     ])
     return ordered_data
 
@@ -268,11 +269,16 @@ def fetch_data_for_network(network, network_type, repo_path):
         chain_json_path = os.path.join(repo_path, 'testnets', network, 'chain.json')
     else:
         raise ValueError(f"Invalid network type: {network_type}")
+    
+    err_output_data = {
+        "network": network,
+        "error": "insufficient data in Cosmos chain registry"
+    }
 
     # Check if the chain.json file exists
     if not os.path.exists(chain_json_path):
         print(f"chain.json not found for network {network}. Skipping...")
-        return None
+        return err_output_data
 
     # Load the chain.json data
     with open(chain_json_path, 'r') as file:
@@ -287,12 +293,12 @@ def fetch_data_for_network(network, network_type, repo_path):
     healthy_rest_endpoints = get_healthy_rest_endpoints(rest_endpoints)
 
     if len(healthy_rpc_endpoints) == 0:
-        print(f"No healthy RPC endpoints found for network {network}. Skipping...")
-        return None
+        print(f"No healthy RPC endpoints found for network {network} while searching through {len(rpc_endpoints)} endpoints. Skipping...")
+        return err_output_data
 
     if len(healthy_rest_endpoints) == 0:
-        print(f"No healthy REST endpoints found for network {network}. Skipping...")
-        return None
+        print(f"No healthy REST endpoints found for network {network} while searching through {len(rest_endpoints)} endpoints. Skipping...")
+        return err_output_data
 
     print(f"Found {len(healthy_rest_endpoints)} rest endpoints and {len(healthy_rpc_endpoints)} rpc endpoints for {network}")
 
@@ -335,6 +341,7 @@ def fetch_data_for_network(network, network_type, repo_path):
             upgrade_version = active_upgrade_version
             upgrade_name = active_upgrade_name
             source = "active_upgrade_proposals"
+            rest_server_used = current_endpoint
             break
 
         if current_upgrade_version and (current_upgrade_height is not None) and current_upgrade_height > latest_block_height:
@@ -342,8 +349,14 @@ def fetch_data_for_network(network, network_type, repo_path):
             upgrade_version = current_upgrade_version
             upgrade_name = current_upgrade_name
             source = "current_upgrade_plan"
+            rest_server_used = current_endpoint
             break
-        rest_server_used = current_endpoint
+
+        if not active_upgrade_version and not current_upgrade_version:
+            #this is where the "no upgrades found block runs"
+            rest_server_used = current_endpoint
+            break
+        
 
     # Calculate average block time
     current_block_time = get_block_time_rpc(rpc_server_used, latest_block_height)
