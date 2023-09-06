@@ -24,14 +24,14 @@ Seamlessly integrate the `cosmos-upgrades` into your Google Calendar using Googl
 
 ![Fork the script](fork.png)
 
-### 3. Deploy 🚀
+### 2. Deploy 🚀
 
 - Inside the Google Apps Script editor, hit the **Deploy** button and choose **New Deployment**.
 - In **Who has access to the app**, pick **Only myself**.
 - For **Execute the app as**, choose **Me (your email)**.
 - Press **Deploy**.
 
-### 4. Call the web app 🌌
+### 3. Call the web app 🌌
 
 - Post-deployment, you're given a unique URL. Click to this URL to open it in your web browser. 
 
@@ -39,7 +39,7 @@ You can now select your calendar(s), and which mainnets and testnets you want to
 
 Hit the `Add cosmos-upgrades to calendar` button save your settings and add upgrade events from your network list.
 
-![You're now set!](done.png)
+![You're now set!](script_done.png)
 
 ## Disclaimer 💡
 
