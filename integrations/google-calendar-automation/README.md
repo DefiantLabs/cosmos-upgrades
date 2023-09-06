@@ -22,7 +22,7 @@ Seamlessly integrate the `cosmos-upgrades` into your Google Calendar using Googl
 - On the project overview page, hit the **Copy** button located at the top right.
 - This creates your personal copy of the script and gives you full control and ownership, which is needed for the automatic update function to work!
 
-![Fork the script](fork.png)
+![Fork the script](script_fork.png)
 
 ### 2. Deploy 🚀
 
