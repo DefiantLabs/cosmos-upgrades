@@ -612,58 +612,6 @@ def start_update_data_thread():
 def health_check():
     return jsonify(status="OK"), 200
 
-
-@app.route("/fetch", methods=["POST"])
-def fetch_network_data():
-    try:
-        request_data = request.get_json()
-        if not request_data:
-            return jsonify({"error": "Invalid payload"}), 400
-
-        mainnet_data = cache.get("MAINNET_DATA")
-        testnet_data = cache.get("TESTNET_DATA")
-
-        # If the data is not in the cache, fetch it live
-        if not mainnet_data or not testnet_data:
-            results = []
-            for network_type, networks in [
-                ("mainnet", request_data.get("MAINNETS", [])),
-                ("testnet", request_data.get("TESTNETS", [])),
-            ]:
-                for network in networks:
-                    try:
-                        network_data = fetch_data_for_network(network, network_type)
-                        results.append(network_data)
-                    except Exception as e:
-                        print(f"Error fetching data for network {network}: {e}")
-        else:
-            # Filter the cached data based on the networks provided in the POST request
-            filtered_mainnet_data = [
-                data
-                for data in mainnet_data
-                if data["network"] in request_data.get("MAINNETS", [])
-            ]
-            filtered_testnet_data = [
-                data
-                for data in testnet_data
-                if data["network"] in request_data.get("TESTNETS", [])
-            ]
-            results = filtered_mainnet_data + filtered_testnet_data
-
-        sorted_results = sorted(results, key=lambda x: x["upgrade_found"], reverse=True)
-        reordered_results = [reorder_data(result) for result in sorted_results]
-        return Response(
-            json.dumps(reordered_results, indent=2) + "\n",
-            content_type="application/json",
-        )
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-    except Exception as e:
-        return jsonify({"error": str(e)}), 500
-
-
 @app.route("/mainnets")
 # @cache.cached(timeout=600)  # Cache the result for 10 minutes
 def get_mainnet_data():
