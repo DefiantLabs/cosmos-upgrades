@@ -34,7 +34,10 @@ Seamlessly integrate the `cosmos-upgrades` into your Google Calendar using Googl
 ### 3. Call the web app & Authenticate
 
 - Post-deployment, you're given a unique URL. Click to this URL to open it in your web browser. 
-- When calling the URL for the first time, you need to authenticate the Script to access your Google Calendar events and connect to external services (On the oauth page, click on "advanced")
+- When calling the URL for the first time, you need to authenticate the Script to access your Google Calendar events and connect to external services. 
+- On the Sign-in page, click on "Advanced" > "Go to Copy of cosmos-upgrades (unsafe)" > "Allow"
+
+![oauth](script_oauth.png)
 
 You can now select your calendar(s), and which mainnets and testnets you want to receive updates for.
 
