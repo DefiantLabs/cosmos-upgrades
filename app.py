@@ -312,7 +312,6 @@ def fetch_current_upgrade_plan(rest_url):
 
             # Get all version matches
             version_matches = SEMANTIC_VERSION_PATTERN.findall(plan_dump)
-            print(version_matches)
 
             if version_matches:
                 # Find the longest match
