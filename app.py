@@ -215,7 +215,6 @@ def reorder_data(data):
             ("source", data.get("source")),
             ("upgrade_block_height", data.get("upgrade_block_height")),
             ("estimated_upgrade_time", data.get("estimated_upgrade_time")),
-            ("upgrade_plan_dump", data.get("upgrade_plan_dump")),
             ("version", data.get("version")),
             ("error", data.get("error")),
         ]
@@ -310,8 +309,6 @@ def fetch_current_upgrade_plan(rest_url):
 
             # Convert the plan to string and search for the version pattern
             plan_dump = json.dumps(plan)
-            upgrade_plan = json.loads(plan_dump)
-            info = json.loads(upgrade_plan.get("info", "{}"))
 
             # Get all version matches
             version_matches = SEMANTIC_VERSION_PATTERN.findall(plan_dump)
@@ -323,7 +320,7 @@ def fetch_current_upgrade_plan(rest_url):
                     height = int(plan.get("height", 0))
                 except ValueError:
                     height = 0
-                return plan_name, version, height, plan_dump
+                return plan_name, version, height
 
         return None, None, None
     except requests.RequestException as e:
@@ -346,7 +343,7 @@ def fetch_data_for_network(network, network_type, repo_path):
         chain_json_path = os.path.join(repo_path, "testnets", network, "chain.json")
     else:
         raise ValueError(f"Invalid network type: {network_type}")
-    output_data = {}
+
     err_output_data = {
         "network": network,
         "type": network_type,
@@ -431,7 +428,6 @@ def fetch_data_for_network(network, network_type, repo_path):
                 current_upgrade_name,
                 current_upgrade_version,
                 current_upgrade_height,
-                current_plan_dump,
             ) = fetch_current_upgrade_plan(current_endpoint)
         except:
             if index + 1 < len(healthy_rest_endpoints):
@@ -460,29 +456,13 @@ def fetch_data_for_network(network, network_type, repo_path):
         if (
             current_upgrade_version
             and (current_upgrade_height is not None)
-            and (current_plan_dump is not None)
             and current_upgrade_height > latest_block_height
         ):
             upgrade_block_height = current_upgrade_height
-            upgrade_plan = json.loads(current_plan_dump)
             upgrade_version = current_upgrade_version
             upgrade_name = current_upgrade_name
             source = "current_upgrade_plan"
             rest_server_used = current_endpoint
-            # Extract the relevant information from the parsed JSON
-            info = json.loads(upgrade_plan.get("info", "{}"))
-            binaries = info.get("binaries", {})
-
-            estimated_upgrade_time = info.get("time", None)
-
-            # Include the expanded information in the output data
-            output_data["upgrade_plan_dump"] = {
-                "height": upgrade_plan.get("height", None),
-                "binaries": binaries,
-                "name": upgrade_plan.get("name", None),
-                "time": estimated_upgrade_time,
-                "upgraded_client_state": upgrade_plan.get("upgraded_client_state", None),
-            }
             break
 
         if not active_upgrade_version and not current_upgrade_version:
@@ -525,7 +505,6 @@ def fetch_data_for_network(network, network_type, repo_path):
         "upgrade_name": upgrade_name,
         "source": source,
         "upgrade_block_height": upgrade_block_height,
-        "upgrade_plan_dump": output_data["upgrade_plan_dump"],
         "estimated_upgrade_time": estimated_upgrade_time,
         "version": upgrade_version,
     }
