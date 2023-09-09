@@ -5,8 +5,8 @@ declare -A networks=(
   [testnets]="agorictestnet quasartestnet stridetestnet onomytestnet axelartestnet nibirutestnet nobletestnet dydxtestnet osmosistestnet cosmoshubtestnet"
 )
 
-base_url="https://cosmos-upgrades.apis.defiantlabs.net"
-# base_url="http://localhost:5000"
+# base_url="https://cosmos-upgrades.apis.defiantlabs.net"
+base_url="http://localhost:5000"
 
 # Loop over both mainnets and testnets
 for type in "${!networks[@]}"; do
