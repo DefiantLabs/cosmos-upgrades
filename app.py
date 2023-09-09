@@ -3,7 +3,6 @@ import re
 from datetime import datetime
 from datetime import timedelta
 from random import shuffle
-import traceback
 
 # import logging
 import threading
@@ -618,7 +617,6 @@ def update_data():
             ).total_seconds()  # Calculate the elapsed time in case of an error
             print(f"Error in update_data loop after {elapsed_time} seconds: {e}")
             print("Error encountered. Sleeping for 1 minute before retrying...")
-            traceback.print_exc(e)
             sleep(60)
 
 
