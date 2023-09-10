@@ -471,14 +471,11 @@ def fetch_data_for_network(network, network_type, repo_path):
             info = json.loads(upgrade_plan.get("info", "{}"))
             binaries = info.get("binaries", {})
 
-            estimated_upgrade_time = info.get("time", None)
-
             # Include the expanded information in the output data
             output_data["upgrade_plan"] = {
                 "height": upgrade_plan.get("height", None),
                 "binaries": binaries,
                 "name": upgrade_plan.get("name", None),
-                "time": estimated_upgrade_time,
                 "upgraded_client_state": upgrade_plan.get("upgraded_client_state", None),
             }
             break
