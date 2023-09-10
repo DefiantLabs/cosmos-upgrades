@@ -14,6 +14,7 @@ from collections import OrderedDict
 import os
 import json
 import subprocess
+import semantic_version
 
 app = Flask(__name__)
 
@@ -30,13 +31,13 @@ cache = Cache(app, config={"CACHE_TYPE": "simple"})
 
 # Initialize repo vars
 # repo_path = ""
-# repo_last_download_time = None
 # repo_retain_hours = int(os.environ.get('REPO_RETAIN_HOURS', 3))
 
 # Initialize number of workers
 num_workers = int(os.environ.get("NUM_WORKERS", 10))
 
-GITHUB_API_BASE_URL = "https://api.github.com/repos/cosmos/chain-registry/contents"
+GITHUB_API_URL = "https://api.github.com"
+GITHUB_API_BASE_URL = GITHUB_API_URL + "/repos/cosmos/chain-registry/contents"
 
 # these servers have given consistent error responses, this list is used to skip them
 SERVER_BLACKLIST = [
@@ -250,7 +251,7 @@ def fetch_endpoints(network, base_url):
         return [], []
 
 
-def fetch_active_upgrade_proposals(rest_url):
+def fetch_active_upgrade_proposals(rest_url, network, network_repo_semver_tags):
     try:
         response = requests.get(
             f"{rest_url}/cosmos/gov/v1beta1/proposals?proposal_status=2", verify=False
@@ -275,8 +276,14 @@ def fetch_active_upgrade_proposals(rest_url):
 
                 # naive regex search on whole message dump
                 content_dump = json.dumps(content)
-                versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
-                version = max(versions, key=len)
+
+                #prefer any version strings found in plan_name first
+                versions = SEMANTIC_VERSION_PATTERN.findall(plan_name)
+                if len(versions) == 0:
+                    #fallback to naive search across whole message dump
+                    versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
+                
+                version = find_best_semver_for_versions(network, versions, network_repo_semver_tags)
                 try:
                     height = int(plan.get("height", 0))
                 except ValueError:
@@ -294,8 +301,7 @@ def fetch_active_upgrade_proposals(rest_url):
         )
         raise e
 
-
-def fetch_current_upgrade_plan(rest_url):
+def fetch_current_upgrade_plan(rest_url, network, network_repo_semver_tags):
     try:
         response = requests.get(
             f"{rest_url}/cosmos/upgrade/v1beta1/current_plan", verify=False
@@ -315,7 +321,7 @@ def fetch_current_upgrade_plan(rest_url):
 
             if version_matches:
                 # Find the longest match
-                version = max(version_matches, key=len)
+                version = find_best_semver_for_versions(network, version_matches, network_repo_semver_tags)
                 try:
                     height = int(plan.get("height", 0))
                 except ValueError:
@@ -332,6 +338,102 @@ def fetch_current_upgrade_plan(rest_url):
         )
         raise e
 
+def fetch_network_repo_tags(network, network_repo):
+    if "github.com" in network_repo:
+        try:
+            repo_parts = network_repo.split("/")
+            repo_name = repo_parts[-1]
+            repo_owner = repo_parts[-2]
+
+            if not repo_name or not repo_owner:
+                print(f"Could not parse github repo name or owner for {network}")
+                return []
+            
+            tags_url = GITHUB_API_URL + f"/repos/{repo_owner}/{repo_name}/tags"
+            tags = requests.get(tags_url)
+            return list(map(lambda tag: tag["name"], tags.json()))
+        except Exception as e:
+            print(f"Could not fetch tags from github for network {network}")
+            print(e)
+            return []
+    else:
+        print(f"Could not fetch tags from github for network {network}: unsupported repo url {network_repo}")
+        return []
+
+def get_network_repo_semver_tags(network, network_repo_url):
+    cached_tags = cache.get(network_repo_url + "_tags")
+    if not cached_tags:
+        network_repo_tag_strings = fetch_network_repo_tags(network, network_repo_url)
+        #cache response from network repo url to reduce api calls to whatever service is hosting the repo
+        cache.set(network_repo_url + "_tags", network_repo_tag_strings, timeout=600)
+    else:
+        network_repo_tag_strings = cached_tags
+
+    network_repo_semver_tags = []
+    for tag in network_repo_tag_strings:
+        #only use semantic version tags
+        try:
+            if tag.startswith("v"):
+                version = semantic_version.Version(tag[1:])
+            else:
+                version = semantic_version.Version(tag)
+            network_repo_semver_tags.append(version)
+        except Exception as e:
+            pass
+
+    return network_repo_semver_tags
+
+def find_best_semver_for_versions(network, network_version_strings, network_repo_semver_tags):
+    if len(network_repo_semver_tags) == 0:
+        return max(network_version_strings, key=len)
+    
+    try:
+        # find version matches in the repo tags
+        possible_semvers = []
+        for version_string in network_version_strings:
+            if version_string.startswith("v"):
+                version_string = version_string[1:]
+
+            contains_minor_version = True
+            contains_patch_version = True
+
+            # our regex captures version strings like "v1" without a minor or patch version, so we need to check for that
+            # are these conditions good enough or is it missing any cases?
+            if "." not in version_string:
+                contains_minor_version = False
+                contains_patch_version = False
+                version_string = version_string + ".0.0"
+            elif version_string.count(".") == 1:
+                contains_patch_version = False
+                version_string = version_string + ".0"
+            
+            current_semver = semantic_version.Version(version_string)
+
+            for semver_tag in network_repo_semver_tags:
+                # find matching tags based on what information we have
+                if semver_tag.major == current_semver.major:
+                    if contains_minor_version:
+                        if semver_tag.minor == current_semver.minor:
+                            if contains_patch_version:
+                                if semver_tag.patch == current_semver.patch:
+                                    possible_semvers.append(semver_tag)
+                            else:
+                                possible_semvers.append(semver_tag)
+                    else:
+                        possible_semvers.append(semver_tag)
+
+        # currently just return the highest semver from the list of possible matches. This may be too naive
+        if len(possible_semvers) != 0:
+            #sorting is built into the semantic version library
+            possible_semvers.sort(reverse=True)
+            semver = possible_semvers[0]
+            return f"v{semver.major}.{semver.minor}.{semver.patch}"
+    except Exception as e:
+        print(f"Failed to parse version strings into semvers for network {network}")
+        print(e)
+        return max(network_version_strings, key=len)
+
+    return max(network_version_strings, key=len)
 
 def fetch_data_for_network(network, network_type, repo_path):
     """Fetch data for a given network."""
@@ -362,6 +464,15 @@ def fetch_data_for_network(network, network_type, repo_path):
     # Load the chain.json data
     with open(chain_json_path, "r") as file:
         data = json.load(file)
+
+    network_repo_url = data.get("codebase", {}).get("git_repo", None)
+    network_repo_semver_tags = []
+    
+    if network_repo_url is not None:
+        network_repo_semver_tags = get_network_repo_semver_tags(network, network_repo_url)
+    else:
+        print(f"Network {network} has no git_repo defined in registry, will skip repo tag checks")
+
 
     rest_endpoints = data.get("apis", {}).get("rest", [])
     rpc_endpoints = data.get("apis", {}).get("rpc", [])
@@ -423,12 +534,12 @@ def fetch_data_for_network(network, network_type, repo_path):
                 active_upgrade_name,
                 active_upgrade_version,
                 active_upgrade_height,
-            ) = fetch_active_upgrade_proposals(current_endpoint)
+            ) = fetch_active_upgrade_proposals(current_endpoint, network, network_repo_semver_tags)
             (
                 current_upgrade_name,
                 current_upgrade_version,
                 current_upgrade_height,
-            ) = fetch_current_upgrade_plan(current_endpoint)
+            ) = fetch_current_upgrade_plan(current_endpoint, network, network_repo_semver_tags)
         except:
             if index + 1 < len(healthy_rest_endpoints):
                 print(
@@ -515,7 +626,6 @@ def fetch_data_for_network(network, network_type, repo_path):
 # periodic cache update
 def update_data():
     """Function to periodically update the data for mainnets and testnets."""
-    global repo_last_download_time
 
     while True:
         start_time = datetime.now()  # Capture the start time
