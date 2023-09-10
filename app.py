@@ -283,7 +283,7 @@ def fetch_active_upgrade_proposals(rest_url, network, network_repo_semver_tags):
                 if len(versions) == 0:
                     #fallback to naive search across whole message dump
                     versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
-                
+
                 version = find_best_semver_for_versions(network, versions, network_repo_semver_tags)
                 try:
                     height = int(plan.get("height", 0))
@@ -349,7 +349,7 @@ def fetch_network_repo_tags(network, network_repo):
             if not repo_name or not repo_owner:
                 print(f"Could not parse github repo name or owner for {network}")
                 return []
-            
+
             tags_url = GITHUB_API_URL + f"/repos/{repo_owner}/{repo_name}/tags"
             tags = requests.get(tags_url)
             return list(map(lambda tag: tag["name"], tags.json()))
@@ -387,7 +387,7 @@ def get_network_repo_semver_tags(network, network_repo_url):
 def find_best_semver_for_versions(network, network_version_strings, network_repo_semver_tags):
     if len(network_repo_semver_tags) == 0:
         return max(network_version_strings, key=len)
-    
+
     try:
         # find version matches in the repo tags
         possible_semvers = []
@@ -407,7 +407,7 @@ def find_best_semver_for_versions(network, network_version_strings, network_repo
             elif version_string.count(".") == 1:
                 contains_patch_version = False
                 version_string = version_string + ".0"
-            
+
             current_semver = semantic_version.Version(version_string)
 
             for semver_tag in network_repo_semver_tags:
@@ -468,7 +468,7 @@ def fetch_data_for_network(network, network_type, repo_path):
 
     network_repo_url = data.get("codebase", {}).get("git_repo", None)
     network_repo_semver_tags = []
-    
+
     if network_repo_url is not None:
         network_repo_semver_tags = get_network_repo_semver_tags(network, network_repo_url)
     else:
