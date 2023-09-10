@@ -252,7 +252,7 @@ def fetch_endpoints(network, base_url):
         return [], []
 
 
-def fetch_active_upgrade_proposals(rest_url, network, network_repo_semver_tags):
+def fetch_active_upgrade_proposals(rest_url, network, network_repo_url):
     try:
         response = requests.get(
             f"{rest_url}/cosmos/gov/v1beta1/proposals?proposal_status=2", verify=False
@@ -283,8 +283,9 @@ def fetch_active_upgrade_proposals(rest_url, network, network_repo_semver_tags):
                 if len(versions) == 0:
                     #fallback to naive search across whole message dump
                     versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
-
-                version = find_best_semver_for_versions(network, versions, network_repo_semver_tags)
+                if versions:
+                    network_repo_semver_tags = get_network_repo_semver_tags(network, network_repo_url)
+                    version = find_best_semver_for_versions(network, versions, network_repo_semver_tags)
                 try:
                     height = int(plan.get("height", 0))
                 except ValueError:
@@ -302,7 +303,7 @@ def fetch_active_upgrade_proposals(rest_url, network, network_repo_semver_tags):
         )
         raise e
 
-def fetch_current_upgrade_plan(rest_url, network, network_repo_semver_tags):
+def fetch_current_upgrade_plan(rest_url, network, network_repo_url):
     try:
         response = requests.get(
             f"{rest_url}/cosmos/upgrade/v1beta1/current_plan", verify=False
@@ -322,6 +323,7 @@ def fetch_current_upgrade_plan(rest_url, network, network_repo_semver_tags):
 
             if version_matches:
                 # Find the longest match
+                network_repo_semver_tags = get_network_repo_semver_tags(network, network_repo_url)
                 version = find_best_semver_for_versions(network, version_matches, network_repo_semver_tags)
                 try:
                     height = int(plan.get("height", 0))
@@ -467,13 +469,6 @@ def fetch_data_for_network(network, network_type, repo_path):
         data = json.load(file)
 
     network_repo_url = data.get("codebase", {}).get("git_repo", None)
-    network_repo_semver_tags = []
-
-    if network_repo_url is not None:
-        network_repo_semver_tags = get_network_repo_semver_tags(network, network_repo_url)
-    else:
-        print(f"Network {network} has no git_repo defined in registry, will skip repo tag checks")
-
 
     rest_endpoints = data.get("apis", {}).get("rest", [])
     rpc_endpoints = data.get("apis", {}).get("rpc", [])
@@ -535,13 +530,13 @@ def fetch_data_for_network(network, network_type, repo_path):
                 active_upgrade_name,
                 active_upgrade_version,
                 active_upgrade_height,
-            ) = fetch_active_upgrade_proposals(current_endpoint, network, network_repo_semver_tags)
+            ) = fetch_active_upgrade_proposals(current_endpoint, network, network_repo_url)
             (
                 current_upgrade_name,
                 current_upgrade_version,
                 current_upgrade_height,
                 current_plan_dump,
-            ) = fetch_current_upgrade_plan(current_endpoint, network, network_repo_semver_tags)
+            ) = fetch_current_upgrade_plan(current_endpoint, network, network_repo_url)
         except:
             if index + 1 < len(healthy_rest_endpoints):
                 print(
