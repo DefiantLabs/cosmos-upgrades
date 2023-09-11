@@ -591,6 +591,7 @@ def fetch_data_for_network(network, network_type, repo_path):
                 info = json.loads(upgrade_plan.get("info", "{}"))
                 binaries = info.get("binaries", {})
             except:
+                print(f"Failed to parse binaries for network {network}. Non-fatal error, skipping...")
                 pass
 
             # Include the expanded information in the output data
