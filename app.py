@@ -3,7 +3,7 @@ import re
 from datetime import datetime
 from datetime import timedelta
 from random import shuffle
-
+import traceback
 # import logging
 import threading
 from flask import Flask, jsonify, request, Response
@@ -718,6 +718,7 @@ def update_data():
                 datetime.now() - start_time
             ).total_seconds()  # Calculate the elapsed time in case of an error
             print(f"Error in update_data loop after {elapsed_time} seconds: {e}")
+            traceback.print_exc(e)
             print("Error encountered. Sleeping for 1 minute before retrying...")
             sleep(60)
 
