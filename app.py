@@ -182,7 +182,9 @@ def get_latest_block_height_rpc(rpc_url):
         return int(
             data.get("result", {}).get("sync_info", {}).get("latest_block_height", 0)
         )
-    except requests.RequestException as e:
+    # RPC endpoints can return a 200 but not JSON (usually an HTML error page due to throttling or some other error)
+    # Catch everything instead of just requests.RequestException
+    except Exception:
         return -1  # Return -1 to indicate an error
 
 
@@ -193,7 +195,9 @@ def get_block_time_rpc(rpc_url, height):
         response.raise_for_status()
         data = response.json()
         return data.get("result", {}).get("block", {}).get("header", {}).get("time", "")
-    except requests.RequestException as e:
+    # RPC endpoints can return a 200 but not JSON (usually an HTML error page due to throttling or some other error)
+    # Catch everything instead of just requests.RequestException
+    except Exception:
         return None
 
 
@@ -278,11 +282,9 @@ def fetch_active_upgrade_proposals(rest_url, network, network_repo_url):
                 # naive regex search on whole message dump
                 content_dump = json.dumps(content)
 
-                #prefer any version strings found in plan_name first
-                versions = SEMANTIC_VERSION_PATTERN.findall(plan_name)
-                if len(versions) == 0:
-                    #fallback to naive search across whole message dump
-                    versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
+                # we tried plan_name regex match only, but the plan_name does not always track the version string
+                # see Terra v5 upgrade which points to the v2.2.1 version tag
+                versions = SEMANTIC_VERSION_PATTERN.findall(content_dump)
                 if versions:
                     network_repo_semver_tags = get_network_repo_semver_tags(network, network_repo_url)
                     version = find_best_semver_for_versions(network, versions, network_repo_semver_tags)
@@ -497,6 +499,15 @@ def fetch_data_for_network(network, network_type, repo_path):
         if latest_block_height > 0:
             rpc_server_used = rpc_endpoint["address"]
             break
+
+    if latest_block_height < 0:
+        print(
+            f"No RPC endpoints returned latest height for network {network} while searching through {len(rpc_endpoints)} endpoints. Skipping..."
+        )
+        err_output_data[
+            "error"
+        ] = f"insufficient data in Cosmos chain registry, no RPC servers returned latest block height for {network}. Consider a PR to cosmos/chain-registry"
+        return err_output_data
 
     if len(healthy_rest_endpoints) == 0:
         print(
@@ -717,8 +728,8 @@ def update_data():
             elapsed_time = (
                 datetime.now() - start_time
             ).total_seconds()  # Calculate the elapsed time in case of an error
+            traceback.print_exc()
             print(f"Error in update_data loop after {elapsed_time} seconds: {e}")
-            traceback.print_exc(e)
             print("Error encountered. Sleeping for 1 minute before retrying...")
             sleep(60)
 
