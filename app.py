@@ -585,8 +585,13 @@ def fetch_data_for_network(network, network_type, repo_path):
             source = "current_upgrade_plan"
             rest_server_used = current_endpoint
             # Extract the relevant information from the parsed JSON
-            info = json.loads(upgrade_plan.get("info", "{}"))
-            binaries = info.get("binaries", {})
+            info = {}
+            binaries = []
+            try:
+                info = json.loads(upgrade_plan.get("info", "{}"))
+                binaries = info.get("binaries", {})
+            except:
+                pass
 
             # Include the expanded information in the output data
             output_data["upgrade_plan"] = {
