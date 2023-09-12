@@ -594,9 +594,15 @@ def fetch_data_for_network(network, network_type, repo_path):
                 print(f"Failed to parse binaries for network {network}. Non-fatal error, skipping...")
                 pass
 
+            plan_height = upgrade_plan.get("height", -1)
+            try:
+                plan_height = int(plan_height)
+            except ValueError:
+                plan_height = -1
+
             # Include the expanded information in the output data
             output_data["upgrade_plan"] = {
-                "height": upgrade_plan.get("height", None),
+                "height": plan_height,
                 "binaries": binaries,
                 "name": upgrade_plan.get("name", None),
                 "upgraded_client_state": upgrade_plan.get("upgraded_client_state", None),
