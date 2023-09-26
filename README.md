@@ -1,6 +1,5 @@
 # cosmos-upgrades
 
-
 `cosmos-upgrades` is a powerful tool developed by [Defiant Labs](https://github.com/DefiantLabs) to search for scheduled Cosmos upgrades. This tool aims to streamline the process of tracking and managing upgrades in the Cosmos ecosystem.
 
 ## 🌌 Introduction
@@ -10,10 +9,6 @@ The Cosmos ecosystem is vast and ever-evolving. With frequent upgrades and enhan
 ## 🛠 Problem Statement
 
 Keeping track of scheduled upgrades in a decentralized ecosystem can be challenging. Missing an upgrade can lead to potential downtimes, security vulnerabilities, and missed opportunities. `cosmos-upgrades` addresses this challenge by offering a reliable and up-to-date source of information for all scheduled Cosmos upgrades.
-
-Certainly! Here's the expanded section about the `chain-registry`:
-
----
 
 ## 📚 Chain-Registry Deep Dive
 
@@ -36,61 +31,63 @@ If a particular network or chain is not present in the `chain-registry`, the `co
 
 By doing so, not only do you enhance the tool's capabilities, but you also contribute to the broader Cosmos community.
 
----
-
 ## 🚀 Making Requests
 
-To fetch the scheduled upgrades, you can use the following `curl` command:
+To fetch the scheduled upgrades, you can use the following `curl` command for both mainnets and testnets:
+
+### Mainnets
 
 ```bash
-curl -s -X POST \
+curl -s -X GET \
   -H "Content-Type: application/json" \
-  -d '{
-    "MAINNETS": ["akash"],
-    "TESTNETS": ["cosmoshubtestnet"]
-  }' \
-  https://cosmos-upgrades.apis.defiantlabs.net/fetch
+  https://cosmos-upgrades.apis.defiantlabs.net/mainnets
 ```
 
-**Note:** The testnet and mainnet names provided in the request payload should match one-for-one with the names of the chains in the chain-registry.
+### Testnets
 
-### Response Format:
-
-The response will be in JSON format containing details of the scheduled upgrades. Here's a sample response:
-
-```json
-[
-  {
-    "latest_block_height": 12593557,
-    "network": "akash",
-    "rpc_server": "https://akash-rpc.lavenderfive.com:443",
-    "source": "current_upgrade_plan",
-    "type": "mainnet",
-    "upgrade_block_height": 12606074,
-    "upgrade_found": true,
-    "version": "0.24.0"
-  },
-  {
-    "latest_block_height": 17550150,
-    "network": "cosmoshubtestnet",
-    "rpc_server": "https://rpc-theta.osmotest5.osmosis.zone/",
-    "source": "",
-    "type": "testnet",
-    "upgrade_block_height": null,
-    "upgrade_found": false,
-    "version": ""
-  }
-]
+```bash
+curl -s -X GET \
+  -H "Content-Type: application/json" \
+  https://cosmos-upgrades.apis.defiantlabs.net/testnets
 ```
 
-**Key Fields:**
-- `latest_block_height`: The latest block height of the chain.
-- `network`: The name of the network (e.g., "akash" or "cosmoshubtestnet").
-- `rpc_server`: The RPC server that provided the response.
-- `source`: The source from which the upgrade information was fetched.
-- `type`: Specifies whether it's a "mainnet" or "testnet".
-- `upgrade_block_height`: The block height at which the upgrade is scheduled.
-- `upgrade_found`: A boolean indicating if an upgrade was found.
-- `version`: The version of the upgrade.
+**Note:** The response will contain details of the scheduled upgrades for the specified networks.
 
-**Note:** Chains with scheduled upgrades are displayed first in the response.
+## 🧪 Automated Script (`upgrades.sh`)
+
+`upgrades.sh` is a convenient script provided to fetch scheduled upgrades for both mainnets and testnets. It offers customization options and simplifies the process of tracking upgrades.
+
+### Usage
+
+1. Make sure you have `jq` installed on your system. You can install it using your system's package manager.
+
+2. Open a terminal and navigate to the directory containing `upgrades.sh`.
+
+3. Run the script to fetch upgrades for both mainnets and testnets:
+
+```bash
+./upgrades.sh
+```
+
+The script will provide you with a list of scheduled upgrades for the specified networks.
+
+### Customizing Networks
+
+You can customize the list of networks by modifying the `networks` associative array in the script. The `networks` array is divided into `mainnets` and `testnets`, and you can add or remove network names as needed.
+
+```bash
+declare -A networks=(
+  [mainnets]="secretnetwork osmosis neutron nolus crescent akash cosmoshub sentinel stargaze omniflixhub cosmoshub terra kujira stride injective juno agoric evmos noble omny quasar dvpn onomy"
+  [testnets]="agorictestnet quasartestnet stridetestnet onomytestnet axelartestnet nibirutestnet nobletestnet dydxtestnet osmosistestnet cosmoshubtestnet"
+)
+```
+
+### `CHAIN_WATCH` Environment Variable
+
+The `CHAIN_WATCH` environment variable allows you to specify a particular chain(s) to use, instead of all. If set, the app will only poll the chain-regsitry for the specified chain(s). Otherwise, it will poll all chains in the registry. You can still filter this output with other tooling like upgrades.sh
+
+For example, to only poll "cosmoshub" rpc/rest endpoints, you can set `CHAIN_WATCH` as follows:
+
+```bash
+export CHAIN_WATCH="cosmoshub"
+```

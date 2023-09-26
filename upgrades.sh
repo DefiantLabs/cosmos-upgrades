@@ -1,11 +1,12 @@
 #!/bin/bash
 
 declare -A networks=(
-  [mainnets]="osmosis neutron nolus crescent akash cosmoshub sentinel stargaze omniflixhub cosmoshub terra kujira stride injective juno agoric evmos noble omny quasar dvpn onomy"
+  [mainnets]="secretnetwork osmosis neutron nolus crescent akash cosmoshub sentinel stargaze omniflixhub cosmoshub terra kujira stride injective juno agoric evmos noble omny quasar dvpn onomy"
   [testnets]="agorictestnet quasartestnet stridetestnet onomytestnet axelartestnet nibirutestnet nobletestnet dydxtestnet osmosistestnet cosmoshubtestnet"
 )
 
-base_url="https://cosmos-upgrades.apis.defiantlabs.net"
+# base_url="https://cosmos-upgrades.apis.defiantlabs.net"
+base_url="http://localhost:5000"
 
 # Loop over both mainnets and testnets
 for type in "${!networks[@]}"; do
