@@ -15,6 +15,7 @@ import os
 import json
 import subprocess
 import semantic_version
+import argparse
 
 app = Flask(__name__)
 
@@ -750,6 +751,7 @@ def start_update_data_thread():
     update_thread = threading.Thread(target=update_data)
     update_thread.daemon = True
     update_thread.start()
+    return update_thread
 
 
 @app.route("/healthz")
@@ -786,7 +788,40 @@ def get_testnet_data():
     )
 
 
+def get_app_args():
+    # setup the application args, providing 3 different commands that run the application in different modes
+    parser = argparse.ArgumentParser(description="Cosmos upgrade monitor")
+
+    app_role_subparsers = parser.add_subparsers(title='subcommands',
+        description='valid app roles to run',
+        help='runs the application in various configurations', dest='command')
+    
+    # debug mode runs the application as a development server, with the cache setup as a simple in Python cache
+    app_role_subparsers.add_parser('debug')
+    # reader mode runs the application as a production Flask server, with the cache setup as an external store that is read from
+    reader_parser = app_role_subparsers.add_parser('reader')
+    # writer mode runs the application as a datastore writer, with the cache setup as an external store that is written to
+    writer_parser = app_role_subparsers.add_parser('writer')
+
+    # add the filesystem cache location arg to reader and writer parsers
+    reader_parser.add_argument('--cache-location', dest='cache_location', default='/tmp/cosmos_upgrade_monitor_cache')
+    writer_parser.add_argument('--cache-location', dest='cache_location', default='/tmp/cosmos_upgrade_monitor_cache')
+
+    return parser.parse_args()
+
 if __name__ == "__main__":
-    app.debug = True
-    start_update_data_thread()
-    app.run(host="0.0.0.0", use_reloader=False)
+    args = get_app_args()
+    if args.command == "debug":
+        print("Running in debug mode")
+        app.debug = True
+        start_update_data_thread()
+        app.run(host="0.0.0.0", use_reloader=False)
+    elif args.command == "reader":
+        cache = Cache(app, config={"CACHE_TYPE": "FileSystemCache", "CACHE_DIR": args.cache_location})
+        print("Running as reader")
+        app.run(host="0.0.0.0", use_reloader=False)
+    elif args.command == "writer":
+        cache = Cache(app, config={"CACHE_TYPE": "FileSystemCache", "CACHE_DIR": args.cache_location})
+        print("Running as writer")
+        thread = start_update_data_thread()
+        thread.join()
