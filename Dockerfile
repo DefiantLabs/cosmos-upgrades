@@ -26,7 +26,3 @@ COPY . /app/
 
 # Expose port 5000 for the Flask app to listen on when running within the container
 EXPOSE 5000
-
-# Define the command to start the container. Use gunicorn as the WSGI server to serve the Flask app
-# CMD ["gunicorn", "--bind", "0.0.0.0:5000", "app:app"]
-CMD ["python", "app.py"]
