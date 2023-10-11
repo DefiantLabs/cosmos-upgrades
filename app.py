@@ -71,7 +71,7 @@ def get_chain_watch_env_var():
     return chain_watch
 
 
-CHAIN_WATCH = get_chain_watch_env_var()
+CHAIN_WATCH = []
 
 
 # Clone the repo
@@ -809,19 +809,36 @@ def get_app_args():
 
     return parser.parse_args()
 
+# Acts as a factory, returning the flask app with the cache configured as FSCache
+# Can be called by gunicorn like so:
+# gunicorn -b 0.0.0.0 -w 4 'app:get_production_flask_app("/tmp/cosmos_upgrade_monitor_cache")'
+def get_production_flask_app(cache_location):
+    global cache
+    cache = Cache(app, config={"CACHE_TYPE": "FileSystemCache", "CACHE_DIR": cache_location})
+    return app
+
+# Acts as a factory, returning the flask app with the cache configured as Simple
+def get_debug_flask_app():
+    global cache
+    cache = Cache(app, config={"CACHE_TYPE": "SimpleCache"})
+    app.debug = True
+    return app
+
 if __name__ == "__main__":
     args = get_app_args()
     if args.command == "debug":
+        CHAIN_WATCH = get_chain_watch_env_var()
         print("Running in debug mode")
-        app.debug = True
         start_update_data_thread()
+        debug_app = get_debug_flask_app()
         app.run(host="0.0.0.0", use_reloader=False)
     elif args.command == "reader":
-        cache = Cache(app, config={"CACHE_TYPE": "FileSystemCache", "CACHE_DIR": args.cache_location})
-        print("Running as reader")
-        app.run(host="0.0.0.0", use_reloader=False)
+        print("Running Flask application with FSCache")
+        app = get_production_flask_app(args.cache_location)
+        app.run()
     elif args.command == "writer":
         cache = Cache(app, config={"CACHE_TYPE": "FileSystemCache", "CACHE_DIR": args.cache_location})
+        CHAIN_WATCH = get_chain_watch_env_var()
         print("Running as writer")
         thread = start_update_data_thread()
         thread.join()
