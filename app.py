@@ -795,7 +795,7 @@ def get_app_args():
     app_role_subparsers = parser.add_subparsers(title='subcommands',
         description='valid app roles to run',
         help='runs the application in various configurations', dest='command')
-    
+
     # debug mode runs the application as a development server, with the cache setup as a simple in Python cache
     app_role_subparsers.add_parser('debug')
     # reader mode runs the application as a production Flask server, with the cache setup as an external store that is read from
