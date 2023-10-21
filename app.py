@@ -179,14 +179,14 @@ def get_latest_block_height_rpc(rpc_url):
         response = requests.get(f"{rpc_url}/status", timeout=1)
         response.raise_for_status()
         data = response.json()
-        
+
         if "result" in data.keys():
              data = data["result"]
 
         return int(
             data.get("sync_info", {}).get("latest_block_height", 0)
         )
-        
+
     # RPC endpoints can return a 200 but not JSON (usually an HTML error page due to throttling or some other error)
     # Catch everything instead of just requests.RequestException
     except Exception:
