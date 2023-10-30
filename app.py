@@ -281,9 +281,12 @@ def fetch_active_upgrade_proposals(rest_url, network, network_repo_url):
 
         for proposal in data.get("proposals", []):
             content = proposal.get("content", {})
+            proposal_type = content.get("@type")
             if (
-                content.get("@type")
-                == "/cosmos.upgrade.v1beta1.SoftwareUpgradeProposal"
+                proposal_type
+                == "/cosmos.upgrade.v1beta1.SoftwareUpgradeProposal" or
+                proposal_type
+                == '/cosmos.upgrade.v1beta1.MsgSoftwareUpgrade'
             ):
                 # Extract version from the plan name
                 plan = content.get("plan", {})
