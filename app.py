@@ -193,7 +193,7 @@ def get_latest_block_height_rpc(rpc_url):
         return -1  # Return -1 to indicate an error
 
 
-def get_block_time_rpc(rpc_url, height):
+def get_block_time_rpc(rpc_url, height, allow_retry=False):
     """Fetch the block header time for a given block height from the RPC endpoint."""
     try:
         response = requests.get(f"{rpc_url}/block?height={height}", timeout=1)
@@ -208,6 +208,25 @@ def get_block_time_rpc(rpc_url, height):
     # Catch everything instead of just requests.RequestException
     except Exception as e:
         print(e)
+        # Attempt to retry the request if the error message indicates that the block height is too low
+        # Pulls the block height from the error message and adds 20 to it
+        if allow_retry and response.status_code == 500 and response.content:
+            try:
+                error_message = json.loads(response.content)
+                if "lowest height is " in error_message.get("error", {}).get("data", ""):
+                    print("Reattempting block height request with lowest height data from previous response")
+                    height = int(error_message.get("error", {}).get("data", "").split("lowest height is ")[1].strip()) + 20
+                    response = requests.get(f"{rpc_url}/block?height={height}", timeout=1)
+                    response.raise_for_status()
+                    data = response.json()
+
+                    if "result" in data.keys():
+                        data = data["result"]
+
+                    return data.get("block", {}).get("header", {}).get("time", "")
+            except Exception as ee:
+                print("Retry error:", ee)
+
         return None
 
 
@@ -629,7 +648,7 @@ def fetch_data_for_network(network, network_type, repo_path):
 
     # Calculate average block time
     current_block_time = get_block_time_rpc(rpc_server_used, latest_block_height)
-    past_block_time = get_block_time_rpc(rpc_server_used, latest_block_height - 10000)
+    past_block_time = get_block_time_rpc(rpc_server_used, latest_block_height - 10000, allow_retry=True)
     avg_block_time_seconds = None
 
     if current_block_time and past_block_time:
