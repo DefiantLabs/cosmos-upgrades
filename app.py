@@ -141,14 +141,7 @@ def is_endpoint_healthy(endpoint):
         # some chains dont implement the /health endpoint. Should we just skip /health and go directly to the below?
         if response.status_code == 501:
             response = requests.get(
-                f"{endpoint}/cosmos/gov/v1beta1/proposals?proposal_status=2",
-                timeout=1,
-                verify=False,
-            )
-
-        if response.status_code == 501:
-            response = requests.get(
-                f"{endpoint}/cosmos/upgrade/v1beta1/current_plan",
+                f"{endpoint}/cosmos/base/tendermint/v1beta1/node_info",
                 timeout=1,
                 verify=False,
             )
