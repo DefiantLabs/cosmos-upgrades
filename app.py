@@ -46,6 +46,11 @@ SERVER_BLACKLIST = [
     "https://cosmos-lcd.quickapi.com:443",
 ]
 
+NETWORKS_NO_GOV_MODULE = [
+    "noble",
+    "nobletestnet",
+]
+
 # Global variables to store the data for mainnets and testnets
 MAINNET_DATA = []
 TESTNET_DATA = []
@@ -136,7 +141,7 @@ def is_endpoint_healthy(endpoint):
         # some chains dont implement the /health endpoint. Should we just skip /health and go directly to the below?
         if response.status_code == 501:
             response = requests.get(
-                f"{endpoint}/cosmos/gov/v1beta1/proposals?proposal_status=2",
+                f"{endpoint}/cosmos/base/tendermint/v1beta1/node_info",
                 timeout=1,
                 verify=False,
             )
@@ -568,12 +573,27 @@ def fetch_data_for_network(network, network_type, repo_path):
 
         if current_endpoint in SERVER_BLACKLIST:
             continue
+
+        active_upgrade_check_failed = False
+        upgrade_plan_check_failed = False
         try:
+            if network in NETWORKS_NO_GOV_MODULE:
+                raise Exception("Network does not have gov module")
             (
                 active_upgrade_name,
                 active_upgrade_version,
                 active_upgrade_height,
             ) = fetch_active_upgrade_proposals(current_endpoint, network, network_repo_url)
+
+        except:
+            (
+                active_upgrade_name,
+                active_upgrade_version,
+                active_upgrade_height,
+            ) = (None, None, None)
+            active_upgrade_check_failed = True
+
+        try:
             (
                 current_upgrade_name,
                 current_upgrade_version,
@@ -581,6 +601,15 @@ def fetch_data_for_network(network, network_type, repo_path):
                 current_plan_dump,
             ) = fetch_current_upgrade_plan(current_endpoint, network, network_repo_url)
         except:
+            (
+                current_upgrade_name,
+                current_upgrade_version,
+                current_upgrade_height,
+                current_plan_dump,
+            ) = (None, None, None, None)
+            upgrade_plan_check_failed = True
+
+        if active_upgrade_check_failed and upgrade_plan_check_failed:
             if index + 1 < len(healthy_rest_endpoints):
                 print(
                     f"Failed to query rest endpoints {current_endpoint}, trying next rest endpoint"
@@ -591,6 +620,12 @@ def fetch_data_for_network(network, network_type, repo_path):
                     f"Failed to query rest endpoints {current_endpoint}, all out of endpoints to try"
                 )
                 break
+
+        if active_upgrade_check_failed and network not in NETWORKS_NO_GOV_MODULE:
+            print(
+                f"Failed to query active upgrade endpoint {current_endpoint}, trying next rest endpoint"
+            )
+            continue
 
         if (
             active_upgrade_version
