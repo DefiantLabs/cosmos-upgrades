@@ -1,8 +1,8 @@
 #!/bin/bash
 
 declare -A networks=(
-  [mainnets]="secretnetwork noble osmosis neutron nolus crescent akash cosmoshub sentinel stargaze omniflixhub cosmoshub terra kujira stride injective juno agoric evmos noble omny quasar dvpn onomy"
-  [testnets]="nobletestnet quasartestnet stridetestnet onomytestnet axelartestnet nibirutestnet nobletestnet dydxtestnet osmosistestnet cosmoshubtestnet"
+  [mainnets]="akash agoric axelar celestia comdex composable cosmoshub crescent cronos dydx evmos injective juno kava kujira neutron noble nolys omniflixhub osmosis quasar quicksilver sei sentinel sommerlier stargaze stride terra2 umee"
+  [testnets]="cosmoshubtestnet neutrontestnet nobetestnet osmosistestnet seitestnet"
 )
 
 base_url="https://cosmos-upgrades.apis.defiantlabs.net"
