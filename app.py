@@ -113,7 +113,7 @@ def get_healthy_rpc_endpoints(rpc_endpoints):
         healthy_rpc_endpoints = [
             rpc
             for rpc, is_healthy in executor.map(
-                lambda rpc: (rpc, is_endpoint_healthy(rpc["address"])), rpc_endpoints
+                lambda rpc: (rpc, is_rpc_endpoint_healthy(rpc["address"])), rpc_endpoints
             )
             if is_healthy
         ]
@@ -126,7 +126,7 @@ def get_healthy_rest_endpoints(rest_endpoints):
         healthy_rest_endpoints = [
             rest
             for rest, is_healthy in executor.map(
-                lambda rest: (rest, is_endpoint_healthy(rest["address"])),
+                lambda rest: (rest, is_rest_endpoint_healthy(rest["address"])),
                 rest_endpoints,
             )
             if is_healthy
@@ -135,11 +135,20 @@ def get_healthy_rest_endpoints(rest_endpoints):
     return healthy_rest_endpoints[:5]  # Select the first 5 healthy REST endpoints
 
 
-def is_endpoint_healthy(endpoint):
+def is_rpc_endpoint_healthy(endpoint):
+    try:
+        response = requests.get(f"{endpoint}/abci_info", timeout=1, verify=False)
+        if response.status_code != 200:
+            response = requests.get(f"{endpoint}/health", timeout=1, verify=False)
+        return response.status_code == 200
+    except:
+        return False
+
+def is_rest_endpoint_healthy(endpoint):
     try:
         response = requests.get(f"{endpoint}/health", timeout=1, verify=False)
         # some chains dont implement the /health endpoint. Should we just skip /health and go directly to the below?
-        if response.status_code == 501:
+        if response.status_code != 200:
             response = requests.get(
                 f"{endpoint}/cosmos/base/tendermint/v1beta1/node_info",
                 timeout=1,
@@ -148,35 +157,6 @@ def is_endpoint_healthy(endpoint):
         return response.status_code == 200
     except:
         return False
-
-
-def get_healthy_endpoints(endpoints):
-    healthy_endpoints = []
-
-    def check_endpoint(endpoint):
-        if is_endpoint_healthy(endpoint["address"]):
-            healthy_endpoints.append(endpoint)
-
-    with ThreadPoolExecutor(max_workers=num_workers) as executor:
-        executor.map(check_endpoint, endpoints)
-
-    return healthy_endpoints
-
-
-def check_rest_endpoint(rest_url):
-    """Check the REST endpoint and return the application version and response time."""
-    start_time = datetime.now()
-    try:
-        response = requests.get(f"{rest_url}/node_info", timeout=1, verify=False)
-        response.raise_for_status()
-        elapsed_time = (datetime.now() - start_time).total_seconds()
-
-        data = response.json()
-        app_version = data.get("application_version", {}).get("version")
-        return app_version, elapsed_time
-    except (requests.RequestException, requests.Timeout):
-        return None, (datetime.now() - start_time).total_seconds()
-
 
 def get_latest_block_height_rpc(rpc_url):
     """Fetch the latest block height from the RPC endpoint."""
@@ -200,8 +180,9 @@ def get_latest_block_height_rpc(rpc_url):
 
 def get_block_time_rpc(rpc_url, height, allow_retry=False):
     """Fetch the block header time for a given block height from the RPC endpoint."""
+    response = None
     try:
-        response = requests.get(f"{rpc_url}/block?height={height}", timeout=1)
+        response = requests.get(f"{rpc_url}/block?height={height}", timeout=2)
         response.raise_for_status()
         data = response.json()
 
@@ -215,7 +196,7 @@ def get_block_time_rpc(rpc_url, height, allow_retry=False):
         print(e)
         # Attempt to retry the request if the error message indicates that the block height is too low
         # Pulls the block height from the error message and adds 20 to it
-        if allow_retry and response.status_code == 500 and response.content:
+        if allow_retry and response and response.status_code == 500 and response.content:
             try:
                 error_message = json.loads(response.content)
                 if "lowest height is " in error_message.get("error", {}).get("data", ""):
@@ -237,6 +218,10 @@ def get_block_time_rpc(rpc_url, height, allow_retry=False):
 
 def parse_isoformat_string(date_string):
     date_string = re.sub(r"(\.\d{6})\d+Z", r"\1Z", date_string)
+    # The microseconds MUST be 6 digits long
+    if "." in date_string and len(date_string.split(".")[1]) != 7 and date_string.endswith("Z"):
+        micros = date_string.split(".")[-1][:-1]
+        date_string = date_string.replace(micros, micros.ljust(6, "0"))
     date_string = date_string.replace("Z", "+00:00")
     return datetime.fromisoformat(date_string)
 
@@ -288,7 +273,6 @@ def fetch_endpoints(network, base_url):
         return rest_endpoints, rpc_endpoints
     except requests.RequestException:
         return [], []
-
 
 def fetch_active_upgrade_proposals(rest_url, network, network_repo_url):
     try:
@@ -476,6 +460,14 @@ def find_best_semver_for_versions(network, network_version_strings, network_repo
         return max(network_version_strings, key=len)
 
     return max(network_version_strings, key=len)
+
+def fetch_data_for_networks_wrapper(network, network_type, repo_path):
+    """Wrapper function for fetching data for a given network. Prints the chain name that is erroring out for better visibility"""
+    try:
+        return fetch_data_for_network(network, network_type, repo_path)
+    except Exception as e:
+        print(f"Error fetching data for network {network}: {e}")
+        raise e
 
 def fetch_data_for_network(network, network_type, repo_path):
     """Fetch data for a given network."""
@@ -771,7 +763,7 @@ def update_data():
                     filter(
                         None,
                         executor.map(
-                            lambda network, path: fetch_data_for_network(
+                            lambda network, path: fetch_data_for_networks_wrapper(
                                 network, "testnet", path
                             ),
                             testnet_networks,
@@ -783,7 +775,7 @@ def update_data():
                     filter(
                         None,
                         executor.map(
-                            lambda network, path: fetch_data_for_network(
+                            lambda network, path: fetch_data_for_networks_wrapper(
                                 network, "mainnet", path
                             ),
                             mainnet_networks,

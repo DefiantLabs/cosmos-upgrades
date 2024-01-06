@@ -1,7 +1,7 @@
 #!/bin/bash
 
 declare -A networks=(
-  [mainnets]="akash agoric axelar celestia comdex composable cosmoshub crescent cronos dydx evmos injective juno kava kujira neutron noble nolys omniflixhub osmosis quasar quicksilver sei sentinel sommerlier stargaze stride terra2 umee"
+  [mainnets]="akash agoric axelar celestia comdex composable cosmoshub crescent cronos dydx evmos injective juno kava kujira neutron noble nolys omniflixhub osmosis quasar quicksilver sei sentinel sommelier stargaze stride terra2 umee"
   [testnets]="cosmoshubtestnet neutrontestnet nobetestnet osmosistestnet seitestnet"
 )
 
