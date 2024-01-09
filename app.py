@@ -196,7 +196,7 @@ def get_block_time_rpc(rpc_url, height, allow_retry=False):
         print(e)
         # Attempt to retry the request if the error message indicates that the block height is too low
         # Pulls the block height from the error message and adds 20 to it
-        if allow_retry and response and response.status_code == 500 and response.content:
+        if allow_retry and response is not None and response.status_code == 500 and response.content:
             try:
                 error_message = json.loads(response.content)
                 if "lowest height is " in error_message.get("error", {}).get("data", ""):
@@ -673,10 +673,22 @@ def fetch_data_for_network(network, network_type, repo_path):
             rest_server_used = current_endpoint
             break
 
-    # Calculate average block time
-    current_block_time = get_block_time_rpc(rpc_server_used, latest_block_height)
-    past_block_time = get_block_time_rpc(rpc_server_used, latest_block_height - 10000, allow_retry=True)
+    current_block_time = None
+    past_block_time = None
     avg_block_time_seconds = None
+    for rpc_endpoint in healthy_rpc_endpoints:
+        # Get average block time
+        current_endpoint = rpc_endpoint["address"]
+        current_block_time = get_block_time_rpc(current_endpoint, latest_block_height)
+        past_block_time = get_block_time_rpc(current_endpoint, latest_block_height - 10000, allow_retry=True)
+
+        if current_block_time and past_block_time:
+            break
+        else:
+            print(
+                f"Failed to query current and past block time for rpc endpoint {current_endpoint}, trying next rpc endpoint"
+            )
+            continue
 
     if current_block_time and past_block_time:
         current_block_datetime = parse_isoformat_string(current_block_time)
